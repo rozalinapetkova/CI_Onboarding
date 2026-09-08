@@ -134,6 +134,13 @@ Unlike PI/PO, CI **does not auto-convert** payloads. JSON in = JSON in body. Bef
 
 ## Custom header search
 
-For a header to appear in Monitor → Message Processing custom-header search, it must be set with **MPL custom header property** enabled (checkbox in Content Modifier).
+For a header to appear in Monitor → Message Processing custom-header search, it must be registered explicitly from a Groovy script:
+
+```groovy
+def messageLog = messageLogFactory.getMessageLog(message);
+if (messageLog != null) {
+    messageLog.addCustomHeaderProperty("<header name>", value);
+}
+```
 
 ---

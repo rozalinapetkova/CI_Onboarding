@@ -26,9 +26,9 @@ def Message processData(Message message) {
     String eventSource = headers.get("ce-source") as String;
     String eventSubject = headers.get("ce-subject") as String;
 
-    def messageLog = messageLogFactory.createMessageLog(message);
+    def messageLog = messageLogFactory.getMessageLog(message);
     if (messageLog != null) {
-        messageLog.setStringProperty("correlationId", correlationId);
+        messageLog.addCustomHeaderProperty("correlationId", correlationId);
         messageLog.setStringProperty("correlationIdSource", source);
         if (eventId != null) {
             messageLog.setStringProperty("eventId", eventId);

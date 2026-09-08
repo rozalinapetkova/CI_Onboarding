@@ -26,13 +26,13 @@ def Message processData(Message message) {
 
     String contentType = (headers.get("Content-Type") ?: "application/octet-stream") as String;
 
-    def messageLog = messageLogFactory.createMessageLog(message);
+    def messageLog = messageLogFactory.getMessageLog(message);
     if (messageLog != null) {
         if (correlationId != null) {
-            messageLog.setStringProperty("correlationId", correlationId);
+            messageLog.addCustomHeaderProperty("correlationId", correlationId);
         }
         if (orderId != null) {
-            messageLog.setStringProperty("orderId", orderId);
+            messageLog.addCustomHeaderProperty("orderId", orderId);
         }
         if (orderFormat != null) {
             messageLog.setStringProperty("orderFormat", orderFormat);
