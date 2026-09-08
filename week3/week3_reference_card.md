@@ -95,8 +95,8 @@ Router after script: `Retry` → throw; `Bypass` → JMS receiver to DLQ → End
 
 ### Concurrency knobs
 
-- **Concurrent Processes** — workers per node. Scale throughput.
-- **Exclusive Consumer = Yes** — only one worker drains. Use for order-sensitive, downstream rate limits, shared-state atomicity. Otherwise caps throughput at one worker.
+- **Concurrent Processes** — parallel threads per worker node. Scale throughput (multiplied by worker count when Access Type is Non-Exclusive).
+- **Access Type = Exclusive** — single consumer across the whole tenant, ignoring worker count and Concurrent Processes entirely. Use for order-sensitive, downstream rate limits, shared-state atomicity. Otherwise caps throughput at one worker.
 - **EOIO** — via serialization key (`customerId`). Same-key messages strictly in order, different keys can interleave. SOAP RM is the other EOIO option (90-day dedup).
 
 ### Queue health

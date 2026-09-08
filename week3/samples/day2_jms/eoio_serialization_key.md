@@ -49,7 +49,7 @@ In each: the **partition key** is the entity that owns the order (`customerId`, 
 |---|---|
 | **Throughput cap per partition** | One in-flight message per key. If one customer suddenly sends 1000 orders, they queue behind each other while other customers' orders process freely |
 | **Stuck-key blocking** | If ACME-1 fails and goes into retry, ACME-2 waits the full retry window. ACME messages back up; GLOBEX is unaffected |
-| **Exclusive Consumer interaction** | EOIO + Exclusive Consumer = single-threaded everything. Avoid combining unless absolutely necessary |
+| **Access Type interaction** | EOIO + Access Type = Exclusive = single-threaded everything (redundant combination). Avoid combining unless absolutely necessary |
 | **DLQ semantics** | A Bypass'd ACME-1 lands in DLQ; ACME-2 then processes — meaning the entity's strict order is *already broken*. The downstream must handle that |
 
 The last cost is the subtle one: **EOIO is best-effort under failure**. The moment a message lands in DLQ, "strict order" is past tense for that partition. Downstream consumers of EOIO queues must still be resilient to gap recovery.

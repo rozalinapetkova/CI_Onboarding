@@ -84,19 +84,34 @@ On the **consumer** iFlow the **JMS sender adapter** polls the queue and starts 
 | Exponential Backoff | *Yes* | Doubles each retry |
 | Dead-Letter Queue | *Enabled* | Routes to `<queue>.dlq` after retries exhausted |
 
+**Vocabulary you need before Concurrent Processes makes sense:**
+
+- **Worker node** — a physical runtime unit in your tenant's cluster (a JVM running Karaf + Camel). It's shared infrastructure: any worker node can run *any* of your deployed iFlows, not just this one. How many worker nodes you have is a property of how your tenant is sized, not something you configure per iFlow — a production tenant typically has several, a trial tenant usually has one.
+- **Worker count** — how many of those worker nodes your tenant currently has. You don't set this on the adapter; it's tenant sizing.
+- **Concurrent Processes** — on *this* adapter, how many parallel instances of *this consumer iFlow* a single worker will run at once, each instance picking up a different message from the queue.
+
+So on a 3-worker tenant with Concurrent Processes = `2`: each of the 3 workers independently runs up to 2 simultaneous instances of this consumer iFlow, all pulling from the same queue — up to 6 messages processed at once, total. Full detail on how this interacts with ordering (Access Type) is Section 6.
+
 **Key thing:** the consumer iFlow always has at least one *Exception Subprocess* attached, even at this stage. Without one, transient errors land in the JMS broker's retry mechanism with no visibility into *why*. The exception subprocess runs once per failure attempt, lets you classify the error, and writes a useful `MessageLog` attachment for monitoring (Week 4 deep dive).
 
-## 6. Exclusive vs. Non-exclusive consumers
+## 6. Access Type: Exclusive vs. Non-Exclusive — and how that's different from Concurrent Processes
 
-When the consumer iFlow is deployed on a **multi-worker** runtime (most production tenants), each worker can spawn its own JMS sender consumer thread. This is **non-exclusive** consumption — N workers compete for messages, each gets *some*. Throughput scales linearly with worker count.
+Two separate dials control parallelism on the JMS sender, and they answer different questions:
 
-But sometimes you need **exclusive** — only one worker drains the queue at a time. Reasons:
+- **Access Type** (*Exclusive* / *Non-Exclusive*) — how many **workers** may touch this queue at once.
+- **Concurrent Processes** — how many parallel **threads a single worker** runs against it.
+
+"Workers" are a property of the runtime itself — how many worker nodes your tenant is sized with — not something you configure per adapter. A production tenant typically has several; a trial tenant usually has one.
+
+**Non-Exclusive** (the default) lets every worker node compete for messages independently, and each worker can additionally run up to `Concurrent Processes` threads against the queue at once. So the number of messages potentially in flight at the same time is *(worker count) × (Concurrent Processes)* — on a 3-worker tenant with Concurrent Processes = 2, that's up to 6 messages processed simultaneously. Throughput scales with both numbers, but there's no ordering guarantee across any of it.
+
+**Exclusive** collapses all of that to a single consumer across the *entire* tenant, regardless of worker count or what Concurrent Processes is set to — strictly one message at a time, in order. Reasons to use it:
 
 - **Order-sensitive processing** — you cannot have two messages from the same customer processed concurrently.
 - **Downstream rate limit** — the target API caps you at 1 RPS and you cannot afford to violate it.
 - **State-shared logic** — the consumer maintains a Data Store entry that must be updated atomically.
 
-Set on the JMS sender: *Exclusive Consumer* = **Yes**. Trade-off: throughput is bounded by one worker's capacity. Do not enable unless you genuinely need it — most cohorts default to enabled and starve their queue under load.
+Set on the JMS sender: *Access Type* = **Exclusive**. Trade-off: throughput is bounded by one worker's capacity, and if one message errors, it blocks every message queued behind it. Do not enable unless you genuinely need it — most cohorts default to enabled and starve their queue under load. And once Access Type is Exclusive, changing Concurrent Processes does nothing — there's only ever one consumer regardless of that number.
 
 ## 7. EOIO — Exactly Once In Order
 
@@ -280,7 +295,7 @@ Each lab uses 2 queues per trainee × 8 trainees = 16 queues. Plus existing tena
 ### Failure cases to provoke
 
 - **Forget the DLQ name** on the JMS sender → after 3 retries the message is *deleted* (moved to `roi._<source>.dlq` if the broker auto-creates one, or lost). Lesson: always set DLQ Name explicitly.
-- **Set Concurrent Processes to 4** then turn on Exclusive Consumer → only one worker actually consumes; you've capped throughput at one worker. Watch the queue depth grow.
+- **Set Concurrent Processes to 4** then set Access Type to Exclusive → only one consumer actually drains the queue; you've capped throughput at one worker regardless of Concurrent Processes. Watch the queue depth grow.
 - **Mis-categorize a 422 as Retry** → 3 retries, all fail with 422, eventual DLQ. Wasted 3 retry cycles on a permanent error. Show the consumer's MPL — three Failed runs for one message. Operations team's nightmare.
 - **No exception subprocess at all** → consumer fails opaquely; JMS retries blindly; DLQ messages have no useful diagnostic info.
 - **Set Retry Interval to 1 second** → tight retry storm overwhelms the downstream. Always use sane backoff (60s minimum for HTTP downstreams).
@@ -296,6 +311,6 @@ Each lab uses 2 queues per trainee × 8 trainees = 16 queues. Plus existing tena
 - **Always set DLQ Name.** Never leave it default.
 - **Retry vs. Bypass** error categorization is mandatory on production consumers. Retry = transient, rethrow. Bypass = permanent, route to DLQ + swallow.
 - **EOIO** via JMS serialization key when arrival order matters per partition. Skip otherwise.
-- **Exclusive Consumer** caps throughput at one worker. Use deliberately, not by default.
+- **Access Type = Exclusive** caps throughput at one worker, ignoring Concurrent Processes entirely. Use deliberately, not by default.
 - **JMS hops are not metered.** Free in the message count.
 - **Queue depth ≈ 0** in steady state. A growing queue = consumer can't keep up.

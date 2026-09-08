@@ -24,7 +24,7 @@ JMS sender (poll) ──► Request-Reply + HTTP receiver (downstream) ──►
 | Exponential Backoff | `Yes` | Doubles each retry: 60s, 120s, 240s — gives the downstream room to recover |
 | Dead-Letter Queue | `Enabled` | Always. Without this, a failing message blocks/pollutes the source queue |
 | Dead-Letter Queue Name | `roi.orderhub.dlq.<your_initials>` | Explicit. Never rely on a broker-auto-generated DLQ name |
-| Exclusive Consumer | `No` | Set `Yes` only for ordering or rate-limit constraints (§6). Caps throughput at one worker |
+| Access Type | `Non-Exclusive` | Set to `Exclusive` only for ordering or rate-limit constraints (§6). Caps throughput at one worker, ignoring Concurrent Processes |
 | Lock Timeout | `300` (seconds) | Time a worker holds a message before broker reclaims it for retry. Must exceed worst-case processing time |
 
 ## What the consumer iFlow actually does per message
@@ -42,7 +42,7 @@ JMS sender (poll) ──► Request-Reply + HTTP receiver (downstream) ──►
 | `1` | Default for labs. Single-worker drain. Predictable, easy to debug. Throughput = 1 message at a time |
 | `2`–`4` | Production sweet spot for most downstreams. Workers parallelise the drain. Confirm downstream can handle the load |
 | `5`+ | Only when the downstream is high-throughput and you have measured queue-depth growth at lower values |
-| `1` + Exclusive Consumer = `Yes` | Strict single-threaded drain across the entire runtime (multi-worker tenants) — needed for ordered or rate-limited processing |
+| Access Type = `Exclusive` (Concurrent Processes becomes irrelevant) | Strict single-threaded drain across the entire runtime (multi-worker tenants) — needed for ordered or rate-limited processing |
 
 **Watch out:** the `Concurrent Processes` knob multiplies *per worker*. On a 3-worker production runtime with Concurrent Processes = `2`, you can have up to 6 messages in flight. The 150-transaction tenant limit (§2) is the ceiling.
 
@@ -61,6 +61,6 @@ Both end up in the same DLQ. The difference: Bypass is intentional and immediate
 |---|---|---|
 | DLQ Name left blank | After 3 retries, message vanishes (or auto-DLQ name `<queue>.dlq` you don't monitor) | Always set DLQ Name explicitly |
 | Retry Interval = `1` (second) | Retry storm — hammers a recovering downstream and re-fails | Minimum `60` for HTTP. Exponential backoff on |
-| Concurrent Processes = `4` + Exclusive Consumer = `Yes` | Throughput is `1` (Exclusive overrides), but the config implies 4 — confuses ops | Pick one model deliberately |
+| Concurrent Processes = `4` + Access Type = `Exclusive` | Throughput is `1` (Exclusive overrides regardless of worker count or Concurrent Processes), but the config implies 4 — confuses ops | Pick one model deliberately |
 | Lock Timeout = `60` for an iFlow that sometimes takes 90s | Broker reclaims a still-in-flight message → duplicate processing | Lock Timeout > worst-case processing time. Default 300s is generally safe |
 | No Exception Subprocess | Failures categorized by JMS as "delivery failure" only — no diagnostic logging, no Retry/Bypass | Always attach an Exception Subprocess. Always |

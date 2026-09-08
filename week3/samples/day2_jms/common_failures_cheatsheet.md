@@ -18,7 +18,7 @@
 | Consumer retries 3 times on a 400 response, then DLQs | Categorization not running OR `errorCategory` defaults to Retry for 4xx | Verify Router branches: `Bypass = ${property.errorCategory} = 'Bypass'`. Verify categorization script sets Bypass on 400-499 (except 408, 429) |
 | Same message appears in DLQ four times for one logical failure | Exception Subprocess uses `End Throw` for Bypass branch — rethrows after explicit DLQ enqueue. JMS then retries 3 more times | Bypass branch must end with regular `End` (swallow), not `End Throw` |
 | Consumer iFlow stuck in *In Progress* state for >5 minutes | Lock Timeout shorter than worst-case processing → message reclaimed → duplicate in-flight | Raise Lock Timeout. Also: check downstream isn't deadlocking |
-| `Concurrent Processes = 4` but only one worker draining | Exclusive Consumer = `Yes` overrides Concurrent Processes | Pick one model. Exclusive = single-thread always; non-exclusive = N workers |
+| `Concurrent Processes = 4` but only one worker draining | Access Type = `Exclusive` overrides Concurrent Processes | Pick one model. Exclusive = single-thread always; Non-Exclusive = N workers × Concurrent Processes |
 | Random duplicate processing | A message was reclaimed mid-flight due to Lock Timeout, then both old and new worker completed | Raise Lock Timeout. Make consumer idempotent (Day 3.4 Data Store pattern) |
 
 ## DLQ failures
