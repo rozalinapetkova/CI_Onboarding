@@ -1,0 +1,53 @@
+Date:               2026-04-12  14:22 local
+Author:             abc (Alex B. Carter)
+Source tenant:      ci-dev
+Target tenant:      ci-qa
+cTMS TRR:           TRR-0387
+
+Package:            roi-orderhub
+Package version:    1.0.0 → 1.1.0
+Scope:              Package
+iFlows changed:
+    - roi-orderhub-producer:   1.0.0 → 1.1.0   (initial DLQ alerting wired)
+    - roi-orderhub-consumer:   1.0.0 → 1.1.0   (DLQ moved from default queue to roi.abc.orderhub.dlq)
+    - roi-orderhub-translator: 1.0.0 → 1.0.0   (no change — version unchanged)
+
+Change summary:
+    First transport of roi-orderhub to QA. Brings up the complete three-iFlow
+    set on QA with DLQ alerting enabled.
+    - Producer: now sets correlationId as MPL property at step 1.
+    - Consumer: DLQ renamed from default to roi.abc.orderhub.dlq for cohort isolation.
+
+Risk / blast radius:
+    Failure mode: nothing on QA breaks (no prior version to compare against),
+    but if QA's destinations are misconfigured the transport could land
+    artifacts that can't deploy.
+    Mitigation: Check Connection on TransportManagementService and _oauth
+    destinations on QA before transporting.
+    Affected: QA only; Dev unaffected.
+
+Configuration changed on target (post-import):
+    - ReceiverOrdersBaseUrl:   https://orders-qa.example.com   (NEW)
+    - OAuth2CredentialAlias:   orderhub-qa-oauth                (NEW)
+    - DataStoreName:           orderhub-idempotency-qa          (NEW)
+    - MaxRetries:              3                                (NEW)
+    - RetryBackoffMs:          60000                            (NEW)
+    - AnsActionEmail:          qa-oncall@example.com            (NEW)
+    - QueueName:               roi.abc.orderhub.in              (NEW)
+    - DlqQueueName:            roi.abc.orderhub.dlq             (NEW)
+
+Verification (post-deploy):
+    [x] Smoke-test curl with payload {"orderId":"C-0001",...} → HTTP 202
+    [x] MPL run shows Completed with four attachments
+        (incoming-canonical, pre-jms, post-jms, pre-receiver)
+    [x] correlationId visible in MPL Search dropdown
+    [x] DLQ queue roi.abc.orderhub.dlq exists in Monitor → Queues (depth 0)
+    [x] Cloud ALM lists all three iFlows as Running
+    [x] ANS subscription sub-abc-dlq-depth received a Send Test Event
+
+Known issues / follow-up:
+    - None. This is a baseline transport.
+
+Rollback procedure if discovered broken in QA:
+    No prior version exists on QA to roll back to; undeploy all three iFlows
+    via Operations → Manage Integration Content if needed.

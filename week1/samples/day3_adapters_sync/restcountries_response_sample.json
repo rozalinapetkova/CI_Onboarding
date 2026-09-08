@@ -1,0 +1,17 @@
+[
+  {
+    "name": {
+      "common": "Germany",
+      "official": "Federal Republic of Germany"
+    },
+    "cca2": "DE",
+    "cca3": "DEU",
+    "ccn3": "276",
+    "capital": ["Berlin"],
+    "region": "Europe",
+    "subregion": "Western Europe",
+    "languages": { "deu": "German" },
+    "currencies": { "EUR": { "name": "Euro", "symbol": "€" } },
+    "population": 83240525
+  }
+]

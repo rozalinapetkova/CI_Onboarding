@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+           elementFormDefault="qualified">
+
+  <xs:element name="CanonicalOrder">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="header">
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element name="orderId"          type="xs:string"/>
+              <xs:element name="customer"         type="xs:string"/>
+              <xs:element name="currencyIso4217"  type="xs:string"/>
+              <xs:element name="totalAmount"      type="xs:decimal"/>
+              <xs:element name="priority"         type="xs:string"/>
+            </xs:sequence>
+          </xs:complexType>
+        </xs:element>
+        <xs:element name="lines">
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element name="line" maxOccurs="unbounded">
+                <xs:complexType>
+                  <xs:sequence>
+                    <xs:element name="sku"       type="xs:string"/>
+                    <xs:element name="quantity"  type="xs:int"/>
+                    <xs:element name="lineTotal" type="xs:decimal"/>
+                  </xs:sequence>
+                </xs:complexType>
+              </xs:element>
+            </xs:sequence>
+          </xs:complexType>
+        </xs:element>
+        <xs:element name="totals">
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element name="lineCount"  type="xs:int"/>
+              <xs:element name="grandTotal" type="xs:decimal"/>
+            </xs:sequence>
+          </xs:complexType>
+        </xs:element>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+</xs:schema>

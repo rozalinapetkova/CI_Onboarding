@@ -1,0 +1,48 @@
+Date:       2026-06-22
+iFlow:      roi_<initials>_OrderHub
+Author:     <your name>
+Version:    1.0.4
+
+Summary
+-------
+Added body-signing script (roiam_bodySigner) to the request path. All inbound
+requests now have an X-Body-Signature header computed as SHA-256 of
+(body + X-Signing-Secret). Required header validation throws a 500 when the
+secret header is missing — by design.
+
+Changes
+-------
+- Added Script step "Sign body" between Content Modifier and Router.
+- Uploaded scripts/standalone/roiam_bodySigner.groovy via the Script step dialog
+  (NOT the Resources tab — see project memory on stale metadata).
+- File placement: src/main/resources/script/v2/roiam_bodySigner.groovy
+- No XSD/XSL changes.
+- No Value Mapping changes.
+
+Why
+---
+SecOps mandate (ticket SEC-2417) — all inbound traffic at the integration tier
+must carry a body signature for replay detection at the downstream service.
+Algorithm and secret rotation cadence are owned by the SecOps team; this iFlow
+is the producer end.
+
+Testing
+-------
+- Manual: curl with X-Signing-Secret: shh, body "hello world".
+  Expected X-Body-Signature = sha256("hello worldshh") =
+    e5e3a07e88c3a4...  (see signing_test.sh)
+- Failure case: same curl without the header → 500, RuntimeException visible
+  in Monitor → Failed.
+- Performance: 50 KB payload signed in <5 ms on Dev tenant.
+
+Risks
+-----
+- The script materializes the full body to compute the signature — for payloads
+  > 1 MB this becomes meaningful heap. SecOps confirmed traffic is < 100 KB for
+  the next 12 months.
+- If the X-Signing-Secret header is dropped by a future Content Modifier, all
+  traffic will fail with 500. Add a watchpoint on the Failed MPL count.
+
+Rollback
+--------
+Revert to version 1.0.3 — the Script step is the only change.

@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Missing <Hdr> entirely. The mapping fails on cardinality:
+     header/orderId etc. have minOccurs=1 in the target. -->
+<VendorOrder>
+  <Itm>
+    <Sku>A-100</Sku><Qty>10</Qty><UnitPrice>1200</UnitPrice>
+  </Itm>
+</VendorOrder>

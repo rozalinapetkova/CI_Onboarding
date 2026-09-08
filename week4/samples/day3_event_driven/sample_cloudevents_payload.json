@@ -1,0 +1,54 @@
+{
+  "specversion": "1.0",
+  "id": "e8a1bf57-0c52-4a35-b89c-abc123def456",
+  "source": "https://my-s4-tenant.s4hana.cloud.sap",
+  "type": "sap.s4.beh.salesorder.v1.SalesOrder.Created.v1",
+  "subject": "0001234567",
+  "time": "2026-06-22T14:31:09Z",
+  "datacontenttype": "application/json",
+  "dataschema": "https://my-s4-tenant.s4hana.cloud.sap/schemas/SalesOrder.Created.v1.json",
+  "data": {
+    "SalesOrder": "0001234567",
+    "SalesOrderType": "OR",
+    "SalesOrganization": "1710",
+    "DistributionChannel": "10",
+    "OrganizationDivision": "00",
+    "SoldToParty": "0000017101",
+    "CreationDate": "2026-06-22",
+    "CreationTime": "14:30:55",
+    "CreatedByUser": "BPINST",
+    "LastChangeDate": "2026-06-22",
+    "PurchaseOrderByCustomer": "ACME-PO-9921",
+    "CustomerPurchaseOrderType": "ZB01",
+    "CustomerPurchaseOrderDate": "2026-06-21",
+    "TransactionCurrency": "EUR",
+    "TotalNetAmount": "1500.00",
+    "to_Item": {
+      "results": [
+        {
+          "SalesOrder": "0001234567",
+          "SalesOrderItem": "10",
+          "Material": "S-1",
+          "RequestedQuantity": "2",
+          "RequestedQuantityUnit": "EA",
+          "NetAmount": "1500.00",
+          "TransactionCurrency": "EUR"
+        }
+      ]
+    },
+    "to_Partner": {
+      "results": [
+        {
+          "SalesOrder": "0001234567",
+          "PartnerFunction": "SP",
+          "Customer": "0000017101"
+        },
+        {
+          "SalesOrder": "0001234567",
+          "PartnerFunction": "BP",
+          "Customer": "0000017101"
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,6 @@
+{
+  "status": "accepted",
+  "orderSequence": "${header.X-Order-Sequence}",
+  "receivedAt": "${date:now:yyyy-MM-dd'T'HH:mm:ss'Z'}",
+  "correlationId": "${header.correlationId}"
+}

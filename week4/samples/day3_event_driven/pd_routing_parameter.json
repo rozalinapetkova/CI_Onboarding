@@ -1,0 +1,34 @@
+{
+  "routes": {
+    "sap.s4.beh.salesorder.v1.SalesOrder.Created.v1": {
+      "targetSystem": "OMS_PROD",
+      "targetPath": "/orders/inbound",
+      "timeoutMs": 30000,
+      "retries": 3
+    },
+    "sap.s4.beh.salesorder.v1.SalesOrder.Changed.v1": {
+      "targetSystem": "OMS_PROD",
+      "targetPath": "/orders/update",
+      "timeoutMs": 30000,
+      "retries": 3
+    },
+    "sap.s4.beh.salesorder.v1.SalesOrder.Cancelled.v1": {
+      "targetSystem": "OMS_PROD",
+      "targetPath": "/orders/cancel",
+      "timeoutMs": 15000,
+      "retries": 5
+    },
+    "default": {
+      "targetSystem": "OMS_PROD",
+      "targetPath": "/orders/inbound",
+      "timeoutMs": 30000,
+      "retries": 3
+    }
+  },
+  "_metadata": {
+    "owner": "order-hub-team",
+    "lastUpdated": "2026-06-22",
+    "schemaVersion": "1.0",
+    "comment": "Routing config for roi-orderhub event subscription. Edit via PD cockpit; picked up on next message — no iFlow redeploy."
+  }
+}

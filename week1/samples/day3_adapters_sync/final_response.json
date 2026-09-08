@@ -1,0 +1,12 @@
+{
+  "customerId": "C-1001",
+  "name": "Acme GmbH",
+  "country": {
+    "code": "DE",
+    "name": "Germany",
+    "capital": "Berlin",
+    "region": "Europe",
+    "currency": "EUR"
+  },
+  "lookupStatus": "ok"
+}

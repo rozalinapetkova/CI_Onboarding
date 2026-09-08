@@ -1,0 +1,16 @@
+# vm_<initials>_CurrencyCodes — rows for the Value Mapping artifact
+#
+# Source agency: VENDOR  identifier: CURR
+# Target agency: ISO     identifier: 4217
+#
+# The "Euro" entries catch the case where the vendor sends the human-readable
+# name instead of the ISO code.
+
+VENDOR,CURR,ISO,4217
+EUR,EUR
+USD,USD
+GBP,GBP
+CHF,CHF
+Euro,EUR
+Dollar,USD
+Pound,GBP

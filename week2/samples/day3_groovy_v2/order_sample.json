@@ -1,0 +1,11 @@
+{
+  "orderId": "C-2001",
+  "customer": "50001",
+  "currency": "eur",
+  "totalAmount": 15240.50,
+  "lines": [
+    { "sku": "A-100", "quantity": 10, "unitPrice": 124.00 },
+    { "sku": "A-205", "quantity":  5, "unitPrice": 800.10 },
+    { "sku": "B-200", "quantity":  2, "unitPrice": 4999.95 }
+  ]
+}

@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<VendorOrder>
+  <Hdr>
+    <OrderId>V-90021</OrderId>
+    <SoldTo>10001</SoldTo>
+    <Curr>EUR</Curr>
+    <TotalAmt>148500</TotalAmt>
+  </Hdr>
+  <Itm>
+    <Sku>A-100</Sku><Qty>10</Qty><UnitPrice>1200</UnitPrice>
+  </Itm>
+  <Itm>
+    <Sku>B-200</Sku><Qty>5</Qty><UnitPrice>27300</UnitPrice>
+  </Itm>
+</VendorOrder>

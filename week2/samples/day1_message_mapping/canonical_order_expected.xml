@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CanonicalOrder>
+  <header>
+    <orderId>V-90021</orderId>
+    <customer>10001</customer>
+    <currencyIso4217>EUR</currencyIso4217>
+    <totalAmount>148500</totalAmount>
+    <priority>HIGH</priority>
+  </header>
+  <lines>
+    <line>
+      <sku>A-100</sku>
+      <quantity>10</quantity>
+      <lineTotal>12000</lineTotal>
+    </line>
+    <line>
+      <sku>B-200</sku>
+      <quantity>5</quantity>
+      <lineTotal>136500</lineTotal>
+    </line>
+  </lines>
+  <totals>
+    <lineCount>2</lineCount>
+    <grandTotal>148500</grandTotal>
+  </totals>
+</CanonicalOrder>

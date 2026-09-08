@@ -1,0 +1,52 @@
+Date:               2026-05-08  09:47 local
+Author:             abc (Alex B. Carter)
+Source tenant:      ci-dev
+Target tenant:      ci-qa
+cTMS TRR:           TRR-0411
+
+Package:            roi-orderhub
+Package version:    1.4.2 → 1.4.3
+Scope:              iFlow
+iFlows changed:
+    - roi-orderhub-translator: 1.7.4 → 1.7.5
+
+Change summary:
+    Hotfix. Translator was dropping the optional "shippingNotes" field when
+    it was longer than 80 chars. Customer complaint via support; reproduced
+    in Dev with payload from ticket #SUP-2104.
+    - Removed the spurious .take(80) in mapOrderLines closure.
+    - No structural change; downstream still accepts the field unchanged.
+
+Risk / blast radius:
+    Failure mode: Translator iFlow doesn't redeploy; QA stops translating.
+    Mitigation: rollback to 1.7.4 via CTM (TRR-0411 in cTMS, re-import 1.7.4
+    from Dev's history). See: rollback_runbook.md.
+    Affected: order flow only; Producer + Consumer unchanged.
+
+    Decided iFlow-scope (not Package) because:
+    - Only Translator changed.
+    - No shared script touched.
+    - Translator's contract with Consumer is unchanged (same JSON shape).
+
+Configuration changed on target (post-import):
+    - None. No externalized parameters added or changed.
+
+Verification (post-deploy):
+    [x] Smoke-test curl with payload from SUP-2104 → HTTP 202
+    [x] MPL incoming-canonical attachment contains full shippingNotes (220 chars)
+    [x] MPL pre-receiver attachment contains the same 220 chars (no truncation)
+    [x] Support ticket SUP-2104 verified resolved by QA tester
+    [x] No regression: Producer + Consumer MPL still Completed
+    [x] Cloud ALM iFlow status still Running
+
+Known issues / follow-up:
+    - Add a regression test to the simulation suite with a 220-char shippingNotes.
+    - Add a Monitor → Run-Step assertion to the smoke-test harness (Day 4.4 lab).
+
+Rollback procedure if discovered broken in QA:
+    1. cTMS → re-import TRR with Translator 1.7.4 from Dev's transport history
+       (Dev still has 1.7.4 in its version tree; we never published 1.7.5 to Dev's main).
+    2. QA Configure dialog: no parameters to revert.
+    3. Smoke-test with payload from SUP-2104; expect the OLD truncated behavior
+       to return — that confirms the rollback landed.
+    See: rollback_runbook.md

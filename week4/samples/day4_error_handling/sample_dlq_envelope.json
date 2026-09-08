@@ -1,0 +1,26 @@
+{
+  "envelopeVersion": "1",
+  "correlationId": "evt-2026-06-22-7f3a91c4-8e22-4d10-b6f2-0d1f4eaa3b1d",
+  "failedAt": "2026-06-22T14:32:08.123+02:00",
+  "originalEntryPoint": "amqp:sap.s4.beh.salesorder.v1.SalesOrder.Created.v1",
+  "originalIflow": "roi-orderhub",
+  "failedRouteId": "JSONToXMLConverter_2",
+  "redeliveryCounter": 4,
+  "classification": "poison",
+  "errorClass": "groovy.json.JsonException",
+  "errorMessage": "Unexpected character ('x' (code 120)) in numeric value: expected digit (0-9) to follow minus sign, for valid numeric value at [Source: (StringReader); line: 3, column: 18]",
+  "originalHeaders": {
+    "ce-id": "evt-2026-06-22-7f3a91c4-8e22-4d10-b6f2-0d1f4eaa3b1d",
+    "ce-source": "/sap/s4hanacloud/dev01",
+    "ce-specversion": "1.0",
+    "ce-type": "sap.s4.beh.salesorder.v1.SalesOrder.Created.v1",
+    "ce-subject": "0001234567",
+    "ce-time": "2026-06-22T14:32:05.892+02:00",
+    "ce-datacontenttype": "application/json",
+    "correlationId": "evt-2026-06-22-7f3a91c4-8e22-4d10-b6f2-0d1f4eaa3b1d",
+    "roiam_routing_destination": "default",
+    "roiam_target_system": "oms-primary",
+    "roiam_target_path": "/orders/v2"
+  },
+  "originalBody": "{\n  \"orderId\": \"0001234567\",\n  \"amount\": -x99.50,\n  \"currency\": \"EUR\",\n  \"customer\": {\n    \"id\": \"CUST-44210\",\n    \"name\": \"Acme Industries GmbH\"\n  },\n  \"items\": [\n    { \"sku\": \"SKU-001\", \"qty\": 2, \"price\": 49.75 }\n  ]\n}"
+}

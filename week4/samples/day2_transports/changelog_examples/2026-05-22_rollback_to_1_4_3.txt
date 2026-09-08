@@ -1,0 +1,57 @@
+Date:               2026-05-22  16:03 local
+Author:             abc (Alex B. Carter)
+Source tenant:      ci-dev   (rollback source — the prior version)
+Target tenant:      ci-qa
+cTMS TRR:           TRR-0426   (the rollback request)
+Referencing:        TRR-0421   (the broken forward transport from 2026-05-20)
+                    changelog/roi-orderhub/2026-05-20_dev_to_qa_idempotency_v2.txt
+
+Package:            roi-orderhub
+Package version:    1.5.0 → 1.4.3   (rolled back)
+Scope:              Package
+iFlows changed (rollback target versions):
+    - roi-orderhub-producer:   1.2.0 → 1.1.0
+    - roi-orderhub-consumer:   1.4.0 → 1.3.1
+    - roi-orderhub-translator: 1.7.5 (unchanged in either direction)
+
+Change summary:
+    Rolling QA back to 1.4.3 after the idempotency-v2 transport (1.5.0) on
+    2026-05-20 caused Discarded-status runs to grow unbounded.
+    - Root cause: the new "include cached correlationId in response" code
+      path wrote the response envelope back to the Data Store on every hit,
+      doubling the entry size each replay.
+    - Discovered by Cloud ALM data-store-size alert firing on Monday morning.
+    - Forward fix is in progress on Dev; meanwhile QA needs to be working.
+
+Risk / blast radius:
+    Failure mode: rollback re-introduces the old behavior — cached replies
+    return without the original correlationId. Acceptable for the next 48h
+    while the forward fix is prepared.
+    Affected: orderhub QA traffic; idempotency replays will lose their
+    "replayed from" trace ID.
+
+Configuration changed on target (post-import):
+    - None for the rollback itself.
+    - However the on-call team has been told: "if a customer asks why the
+      response trace doesn't match their request, point them at this
+      changelog and the forward-fix ticket."
+
+Verification (post-deploy):
+    [x] Smoke-test curl with fresh key → HTTP 202, Completed in MPL
+    [x] Smoke-test curl with same key (replay) → HTTP 200, Discarded in MPL
+    [x] Data Store size returning to baseline within 1 hour (was 1.2 GB; now 340 MB)
+    [x] No new ANS alerts on idempotency-storm category since rollback
+    [x] Cloud ALM data-store-size alert auto-cleared after 90 min
+
+Known issues / follow-up:
+    - Forward fix: ticket INGEST-455. Will re-transport as 1.5.1 once
+      the response-envelope-write is gated on "changed since last".
+    - Document this incident in the team's blameless postmortem template.
+
+Rollback procedure of THIS rollback (if 1.4.3 turns out to also be broken):
+    Unlikely — 1.4.3 was in production for 18 days without incident before
+    1.5.0 went out. But if needed:
+    1. cTMS → roll back to 1.4.2 via a second rollback TRR.
+    2. Note that 1.4.2 lacks the SUP-2104 hotfix (see 2026-05-08_hotfix_translator.txt);
+       the support team must be told the truncation bug returns.
+    See: rollback_runbook.md

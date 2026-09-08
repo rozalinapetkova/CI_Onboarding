@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CanonicalOrder>
+  <header>
+    <orderId>C-2001</orderId>
+    <customer>50001</customer>
+    <currencyIso4217>EUR</currencyIso4217>
+    <totalAmount>15240.50</totalAmount>
+    <priority>MEDIUM</priority>
+  </header>
+  <lines>
+    <line>
+      <sku>A-100</sku>
+      <quantity>10</quantity>
+      <lineTotal>1240.00</lineTotal>
+    </line>
+    <line>
+      <sku>A-205</sku>
+      <quantity>5</quantity>
+      <lineTotal>4000.50</lineTotal>
+    </line>
+    <line>
+      <sku>B-200</sku>
+      <quantity>2</quantity>
+      <lineTotal>9999.90</lineTotal>
+    </line>
+  </lines>
+  <totals>
+    <lineCount>3</lineCount>
+    <grandTotal>15240.50</grandTotal>
+  </totals>
+</CanonicalOrder>

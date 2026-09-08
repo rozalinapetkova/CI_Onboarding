@@ -1,0 +1,18 @@
+{
+  "schema": "customer-echo-log/v1",
+  "recordedAt": "2026-06-22T14:31:07.412+02:00",
+  "correlationId": "2f7b9a13-...-c1",
+  "customerId": "C-1001",
+  "customer": {
+    "customerId": "C-1001",
+    "name": "Acme GmbH",
+    "country": {
+      "code": "DE",
+      "name": "Germany",
+      "capital": "Berlin",
+      "region": "Europe",
+      "currency": "EUR"
+    },
+    "lookupStatus": "ok"
+  }
+}

@@ -1,0 +1,61 @@
+# --- changelog entry template ---
+# File path: changelog/<iflow-stem>/<YYYY-MM-DD>_<note>.txt
+# Example:   changelog/roi-orderhub/2026-06-22_dev_to_qa_dlq_alerting.txt
+#
+# Fill in every field. Keep it terse. This is the searchable record of what
+# moved between tenants — your future self will read it during an incident.
+
+Date:               YYYY-MM-DD  HH:MM (local)
+Author:             <your name / initials>
+Source tenant:      ci-dev
+Target tenant:      ci-qa
+cTMS TRR:           TRR-XXXX
+
+Package:            roi-orderhub
+Package version:    <from / to>     e.g. 1.4.2 → 1.5.0
+Scope:              Package | iFlow | Multi-Package
+iFlows changed:     <list of iFlow stems and their version bumps>
+                    - roi-orderhub-consumer: 2.3.1 → 2.4.0
+                    - roi-orderhub-translator: 1.7.4 → 1.7.5
+
+Change summary:
+    <2-4 lines on WHAT moved. Not the diff — the intent.>
+    Example:
+    - Adds ANS subscription for DLQ depth > 10 on the Consumer iFlow.
+    - Adjusts Translator's SKU value-mapping to include the new family S-3*.
+
+Risk / blast radius:
+    <Who is affected if this breaks? What rolls back?>
+    Example:
+    - Failure mode: Consumer doesn't redeploy → QA stops draining the queue.
+    - Mitigation: rollback to 2.3.1 via CTM (see rollback_runbook.md).
+    - Affected: orderhub QA traffic only; no upstream impact.
+
+Configuration changed on target (post-import):
+    <List each externalized parameter you changed in QA's Configure dialog.>
+    Example:
+    - ReceiverOrdersBaseUrl: https://orders-qa.example.com  (unchanged)
+    - AnsActionEmail:        qa-oncall@example.com          (NEW — was empty)
+    - MaxRetries:            3                              (unchanged)
+
+Verification (post-deploy):
+    <Three to five concrete checks you performed.>
+    Example:
+    [x] Smoke-test curl returned 202 Accepted
+    [x] MPL run shows Completed status with all four attachments
+    [x] correlationId visible in MPL Search dropdown
+    [x] ANS subscription sub-abc-dlq-depth received Send Test Event
+    [x] Cloud ALM still shows iFlow as healthy
+
+Known issues / follow-up:
+    <Anything left for tomorrow.>
+    Example:
+    - Need to bump retry policy on the Subscription-Down alert; ticket #INGEST-412.
+
+Rollback procedure if discovered broken in QA:
+    <Reference the rollback runbook; note any deviations.>
+    See: changelog/_runbooks/rollback_runbook.md
+
+# Save this file. Commit it (if your team uses git for the project).
+# DO NOT delete or amend a changelog entry; corrections go in a NEW entry
+# referencing the original by date.

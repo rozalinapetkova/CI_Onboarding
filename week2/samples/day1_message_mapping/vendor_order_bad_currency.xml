@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- YEN is not in the value mapping. With "Throw Exception" set on the
+     valueMapping standard function, the mapping fails at runtime. -->
+<VendorOrder>
+  <Hdr>
+    <OrderId>V-90099</OrderId>
+    <SoldTo>10042</SoldTo>
+    <Curr>YEN</Curr>
+    <TotalAmt>500000</TotalAmt>
+  </Hdr>
+  <Itm>
+    <Sku>Z-1</Sku><Qty>1</Qty><UnitPrice>500000</UnitPrice>
+  </Itm>
+</VendorOrder>

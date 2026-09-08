@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Skeleton .iflw for roi_<initials>_CustomerLogger.
+  ProcessDirect sender -> Script (roiam_writeCustomerLog) -> Data Store Write -> End.
+
+  This consumer is intentionally tiny. The whole point of the Day 1.4 split is
+  that the main iFlow no longer owns persistence — it just hands off.
+-->
+<bpmn2:definitions xmlns:bpmn2="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                   xmlns:ifl="http:///com.sap.ifl.model/Ifl.xsd"
+                   targetNamespace="http://www.sap.com/ifl"
+                   id="CustomerLogger_def">
+
+  <bpmn2:collaboration id="Collaboration_1" name="Collaboration">
+    <bpmn2:participant id="Participant_PD_Sender" name="ProcessDirect_Sender" ifl:type="EndpointSender"/>
+    <bpmn2:participant id="Participant_Process_1" name="Integration Process" processRef="Process_1"/>
+
+    <bpmn2:messageFlow id="MessageFlow_pd_in"
+                       name="ProcessDirect"
+                       sourceRef="Participant_PD_Sender"
+                       targetRef="StartEvent_1">
+      <bpmn2:extensionElements>
+        <ifl:property><key>ComponentType</key><value>ProcessDirect</value></ifl:property>
+        <ifl:property><key>ComponentNS</key><value>sap</value></ifl:property>
+        <ifl:property><key>address</key><value>/ProcessDirect/&lt;initials&gt;_customerLog</value></ifl:property>
+        <ifl:property><key>cmdVariantUri</key><value>ctype::ProcessDirect/cname::ProcessDirect/version::1.0.0</value></ifl:property>
+      </bpmn2:extensionElements>
+    </bpmn2:messageFlow>
+  </bpmn2:collaboration>
+
+  <bpmn2:process id="Process_1" name="Integration Process">
+
+    <bpmn2:startEvent id="StartEvent_1" name="Start">
+      <bpmn2:outgoing>SequenceFlow_1</bpmn2:outgoing>
+      <bpmn2:messageEventDefinition/>
+    </bpmn2:startEvent>
+
+    <bpmn2:callActivity id="CallActivity_Script_1" name="Build log entry">
+      <bpmn2:extensionElements>
+        <ifl:property><key>activityType</key><value>Script</value></ifl:property>
+        <ifl:property><key>subActivityType</key><value>GroovyScript</value></ifl:property>
+        <ifl:property><key>script</key><value>script/v2/roiam_writeCustomerLog.groovy</value></ifl:property>
+        <ifl:property><key>scriptFunction</key><value>processData</value></ifl:property>
+      </bpmn2:extensionElements>
+      <bpmn2:incoming>SequenceFlow_1</bpmn2:incoming>
+      <bpmn2:outgoing>SequenceFlow_2</bpmn2:outgoing>
+    </bpmn2:callActivity>
+
+    <bpmn2:callActivity id="CallActivity_DataStoreWrite_1" name="Write to CustomerEcho">
+      <bpmn2:extensionElements>
+        <ifl:property><key>activityType</key><value>PersistMessage</value></ifl:property>
+        <ifl:property><key>operation</key><value>Write</value></ifl:property>
+        <ifl:property><key>dataStoreName</key><value>CustomerEcho</value></ifl:property>
+        <ifl:property><key>visibility</key><value>IntegrationFlow</value></ifl:property>
+        <ifl:property><key>entryId</key><value>${header.customerId}</value></ifl:property>
+        <ifl:property><key>retentionThreshold</key><value>7</value></ifl:property>
+        <ifl:property><key>encryptedStorage</key><value>true</value></ifl:property>
+        <ifl:property><key>overwriteExistingMessage</key><value>true</value></ifl:property>
+      </bpmn2:extensionElements>
+      <bpmn2:incoming>SequenceFlow_2</bpmn2:incoming>
+      <bpmn2:outgoing>SequenceFlow_3</bpmn2:outgoing>
+    </bpmn2:callActivity>
+
+    <bpmn2:endEvent id="EndEvent_1" name="End">
+      <bpmn2:incoming>SequenceFlow_3</bpmn2:incoming>
+      <bpmn2:messageEventDefinition/>
+    </bpmn2:endEvent>
+
+    <bpmn2:sequenceFlow id="SequenceFlow_1" sourceRef="StartEvent_1" targetRef="CallActivity_Script_1"/>
+    <bpmn2:sequenceFlow id="SequenceFlow_2" sourceRef="CallActivity_Script_1" targetRef="CallActivity_DataStoreWrite_1"/>
+    <bpmn2:sequenceFlow id="SequenceFlow_3" sourceRef="CallActivity_DataStoreWrite_1" targetRef="EndEvent_1"/>
+  </bpmn2:process>
+</bpmn2:definitions>

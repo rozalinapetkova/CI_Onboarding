@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Expected output after running xslt_EnrichCanonicalOrder.xsl on canonical_sample.xml.
+  receivedAt is shown with a placeholder timestamp; in real runs it's the wall-clock
+  time of the transform.
+-->
+<CanonicalOrder>
+  <header>
+    <orderId>V-90021</orderId>
+    <customer>10001</customer>
+    <currencyIso4217>EUR</currencyIso4217>
+    <totalAmount>148500</totalAmount>
+    <priority>HIGH</priority>
+    <routingHint>expedited</routingHint>
+    <receivedAt>2026-06-22T14:31:07Z</receivedAt>
+  </header>
+  <lines>
+    <line>
+      <sku>A-100</sku>
+      <quantity>10</quantity>
+      <lineTotal>12000</lineTotal>
+    </line>
+    <line>
+      <sku>A-205</sku>
+      <quantity>3</quantity>
+      <lineTotal>6900</lineTotal>
+    </line>
+    <line>
+      <sku>B-200</sku>
+      <quantity>5</quantity>
+      <lineTotal>136500</lineTotal>
+    </line>
+  </lines>
+  <grouped>
+    <group prefix="A">
+      <sku>A-100</sku>
+      <sku>A-205</sku>
+    </group>
+    <group prefix="B">
+      <sku>B-200</sku>
+    </group>
+  </grouped>
+  <totals>
+    <lineCount>3</lineCount>
+    <grandTotal>155400</grandTotal>
+  </totals>
+</CanonicalOrder>
+<!--
+  Side effects (visible in the Monitor headers panel, not in the body):
+    Header  routingHint = expedited
+-->
