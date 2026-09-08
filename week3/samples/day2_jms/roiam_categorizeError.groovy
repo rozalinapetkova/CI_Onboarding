@@ -60,7 +60,7 @@ def Message processData(Message message) {
     message.setProperty("errorReason", reason);
     message.setHeader("X-Error-Category", category);
 
-    def messageLog = messageLogFactory.createMessageLog(message);
+    def messageLog = messageLogFactory.getMessageLog(message);
     if (messageLog != null) {
         messageLog.setStringProperty("errorCategory", category);
         messageLog.setStringProperty("errorReason", reason);

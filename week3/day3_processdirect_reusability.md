@@ -256,7 +256,7 @@ Both `roi_<your_initials>_OrderHub` and `roi_<your_initials>_OrderHubConsumer` r
        }
        String bodyString = sb.toString();
 
-       def messageLog = messageLogFactory.createMessageLog(message);
+       def messageLog = messageLogFactory.getMessageLog(message);
        if (messageLog != null) {
            if (correlationId != null) {
                messageLog.setStringProperty("correlationId", correlationId);
@@ -304,7 +304,7 @@ Both `roi_<your_initials>_OrderHub` and `roi_<your_initials>_OrderHubConsumer` r
 
        String body = JsonOutput.toJson(err);
 
-       def messageLog = messageLogFactory.createMessageLog(message);
+       def messageLog = messageLogFactory.getMessageLog(message);
        if (messageLog != null) {
            messageLog.setStringProperty("errorCategory", category);
            messageLog.addAttachmentAsString("error-context", body, "application/json");

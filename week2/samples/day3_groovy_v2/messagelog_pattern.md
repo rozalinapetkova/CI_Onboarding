@@ -3,7 +3,7 @@
 ## The factory is in scope automatically
 
 ```groovy
-def messageLog = messageLogFactory?.createMessageLog(message);
+def messageLog = messageLogFactory?.getMessageLog(message);
 ```
 
 `messageLogFactory` is an SAP-provided binding. **Don't import it.** The `?.` guards against `messageLogFactory` itself being null, which happens in some unit-test harnesses but never at runtime.
@@ -17,7 +17,7 @@ if (messageLog != null) {
 }
 ```
 
-`createMessageLog(message)` returns `null` when the iFlow's *log level* is **None**. Forgetting the guard is the top cause of "my script throws NPE in prod but worked in test" — because dev tenants default to Trace and prod tenants default to None.
+`getMessageLog(message)` returns `null` when the iFlow's *log level* is **None**. Forgetting the guard is the top cause of "my script throws NPE in prod but worked in test" — because dev tenants default to Trace and prod tenants default to None.
 
 ## What each call does
 
@@ -44,13 +44,13 @@ if (messageLog != null) {
 - `java.util.logging` — goes nowhere.
 - Using `setStringProperty` for multi-line content — truncated and unsearchable.
 - Forgetting the null-guard — NPE at runtime when log level is None.
-- Calling `createMessageLog(message)` once per branch — fine to call once and reuse the variable.
+- Calling `getMessageLog(message)` once per branch — fine to call once and reuse the variable.
 
 ## Pattern — instrument the whole script
 
 ```groovy
 def Message processData(Message message) {
-    def messageLog = messageLogFactory?.createMessageLog(message);
+    def messageLog = messageLogFactory?.getMessageLog(message);
     Reader reader = message.getBody(java.io.Reader);
 
     try {

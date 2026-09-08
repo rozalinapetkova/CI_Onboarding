@@ -46,7 +46,7 @@ def Message processData(Message message) {
     // println "hello";
 
     // RIGHT — MessageLog. The factory is in scope automatically (no import).
-    def messageLog = messageLogFactory?.createMessageLog(message);
+    def messageLog = messageLogFactory?.getMessageLog(message);
     if (messageLog != null) {
         messageLog.addAttachmentAsString("diag.txt", "hello", "text/plain");
     }

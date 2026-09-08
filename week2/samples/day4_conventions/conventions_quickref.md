@@ -72,7 +72,7 @@ src/main/resources/script/v2/    ← always v2, never plain script/
 ## MessageLog
 
 ```groovy
-def messageLog = messageLogFactory?.createMessageLog(message);
+def messageLog = messageLogFactory?.getMessageLog(message);
 if (messageLog != null) {
     messageLog.setStringProperty("orderId", orderId);
     messageLog.addAttachmentAsString("input.json", body, "application/json");

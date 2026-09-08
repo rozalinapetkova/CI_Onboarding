@@ -36,7 +36,7 @@ def Message processData(Message message) {
     }
     String bodyString = bodyBuilder.toString();
 
-    def messageLog = messageLogFactory.createMessageLog(message);
+    def messageLog = messageLogFactory.getMessageLog(message);
     if (messageLog != null) {
         messageLog.addAttachmentAsString(boundaryName, bodyString, mimeType);
     }

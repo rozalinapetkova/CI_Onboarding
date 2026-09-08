@@ -77,7 +77,7 @@ If you need a flag to influence routing later in the same iFlow, **use a propert
 The **only** logging mechanism that produces visible output in the runtime is `MessageLog`:
 
 ```groovy
-def messageLog = messageLogFactory.createMessageLog(message);
+def messageLog = messageLogFactory.getMessageLog(message);
 if (messageLog != null) {                                    // null when log level too low
     messageLog.setStringProperty("orderId", "C-1001");        // searchable in MPL custom search
     messageLog.addAttachmentAsString("input.json",
@@ -87,7 +87,7 @@ if (messageLog != null) {                                    // null when log le
 
 `messageLogFactory` is **already in scope** in the script — it's an SAP-provided binding. You don't import it.
 
-**Critical:** `createMessageLog(message)` returns `null` when the iFlow's *log level* is set to `None`. Always guard with `if (messageLog != null)`. Forgetting this is one of the top "my script throws NPE in prod" causes.
+**Critical:** `getMessageLog(message)` returns `null` when the iFlow's *log level* is set to `None`. Always guard with `if (messageLog != null)`. Forgetting this is one of the top "my script throws NPE in prod" causes.
 
 `addAttachmentAsString` becomes a tab in the MPL — visible in *Monitor → Message Processing → Attachments*. Use it for diagnostic snapshots: input, output, intermediate transformation, error context.
 
@@ -343,7 +343,7 @@ Sender → Content Modifier → Router on X-Order-Format
            }
        }
 
-       def messageLog = messageLogFactory.createMessageLog(message);
+       def messageLog = messageLogFactory.getMessageLog(message);
        if (messageLog != null) {
            messageLog.setStringProperty("orderId", orderId ?: "");
            messageLog.addAttachmentAsString("canonical-from-json.xml",
@@ -430,7 +430,7 @@ Sender → Content Modifier → Router on X-Order-Format
            'totals' { 'lineCount'(lines.size()); 'grandTotal'(grand); }
        }
 
-       def messageLog = messageLogFactory.createMessageLog(message);
+       def messageLog = messageLogFactory.getMessageLog(message);
        if (messageLog != null) {
            messageLog.setStringProperty("orderId", orderId);
            messageLog.addAttachmentAsString("canonical-from-csv.xml",
@@ -478,7 +478,7 @@ Sender → Content Modifier → Router on X-Order-Format
 
 - v2 import: `com.sap.it.script.v2.api.Message`. Every script.
 - Always `message.getBody(java.io.Reader)`, parse the stream with `JsonSlurper.parse(reader)` / `XmlSlurper().parse(reader)`.
-- `messageLogFactory.createMessageLog(message)` — **guard for null** (returns null when log level is None).
+- `messageLogFactory.getMessageLog(message)` — **guard for null** (returns null when log level is None).
 - `MessageLog.setStringProperty(name, value)` makes the value searchable in MPL custom-search.
 - **No `Thread.sleep`** — use Groovy's `sleep(ms) { }`. **No top-level classes** — use methods inside the script.
 - v2 scripts placed under `script/v2/`, named `roiam_*`. Upload via the Script step dialog, **not** the Resources tab.

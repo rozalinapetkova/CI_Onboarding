@@ -82,7 +82,7 @@ This is faster than `messageLog.addAttachmentAsString` + deploy + send + read.
 
 ## Limitations on Groovy scripts
 
-- `messageLogFactory.createMessageLog(message)` returns a stub in simulation — attachments and properties go to a panel, not a real MPL.
+- `messageLogFactory.getMessageLog(message)` returns a stub in simulation — attachments and properties go to a panel, not a real MPL.
 - `httpClient` calls (custom HTTP from a script) fail in simulation.
 - Class loading is the same as runtime — most v2 APIs work.
 

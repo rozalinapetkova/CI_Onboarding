@@ -138,7 +138,7 @@ Move the structure inside `processData` (use a `Map`, or `tap` an inner class), 
 `MessageLog` is the runtime logging facility. There is no other logger that survives in CI. The pattern:
 
 ```groovy
-def messageLog = messageLogFactory.createMessageLog(message);
+def messageLog = messageLogFactory.getMessageLog(message);
 if (messageLog != null) {
     messageLog.addAttachmentAsString("incomingPayload", payloadString, "application/json");
     messageLog.setStringProperty("orderId", orderId);
@@ -276,7 +276,7 @@ def Message processData(Message message) {
     }
     String sig = hex.toString();
 
-    def messageLog = messageLogFactory.createMessageLog(message);
+    def messageLog = messageLogFactory.getMessageLog(message);
     if (messageLog != null) {
         messageLog.setStringProperty("signatureAlgo", algo);
     }

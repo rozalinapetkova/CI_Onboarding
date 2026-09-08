@@ -26,7 +26,7 @@ def Message processData(Message message) {
 
     String contentType = (headers.get("Content-Type") ?: "application/octet-stream") as String;
 
-    def messageLog = messageLogFactory.createMessageLog(message);
+    def messageLog = messageLogFactory.getMessageLog(message);
     if (messageLog != null) {
         if (correlationId != null) {
             messageLog.setStringProperty("correlationId", correlationId);

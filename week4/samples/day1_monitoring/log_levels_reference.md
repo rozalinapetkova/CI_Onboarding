@@ -6,7 +6,7 @@ The iFlow's deployable **Log Configuration** controls what the runtime captures.
 
 | Level | What's captured | When to use | Cost on tenant log store |
 |---|---|---|---|
-| **None** | Nothing. `messageLogFactory.createMessageLog(message)` returns `null` | Never for the Order Hub. Acceptable for high-volume noise iFlows that have separate observability | Free |
+| **None** | Nothing. `messageLogFactory.getMessageLog(message)` returns `null` | Never for the Order Hub. Acceptable for high-volume noise iFlows that have separate observability | Free |
 | **Error** | Only failed runs. MPL entry plus the exception | Default for stable, low-attention iFlows | Low |
 | **Info** | Every run. Attachments and properties you set are retained | Production iFlows you actively monitor — including the Order Hub | Medium |
 | **Debug** | Info + every step boundary in the Run Steps view | Debugging a specific issue; revert when done | High |
@@ -14,10 +14,10 @@ The iFlow's deployable **Log Configuration** controls what the runtime captures.
 
 ## The None-level null guard
 
-When level is **None**, `messageLogFactory.createMessageLog(message)` returns `null`. Every script that calls MessageLog methods must guard against this:
+When level is **None**, `messageLogFactory.getMessageLog(message)` returns `null`. Every script that calls MessageLog methods must guard against this:
 
 ```groovy
-def messageLog = messageLogFactory.createMessageLog(message);
+def messageLog = messageLogFactory.getMessageLog(message);
 if (messageLog != null) {
     messageLog.addAttachmentAsString("incoming-payload", payloadString, "application/json");
     messageLog.setStringProperty("orderId", orderId);

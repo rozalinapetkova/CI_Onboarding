@@ -4,7 +4,7 @@ import java.time.OffsetDateTime;
 import java.time.format.DateTimeFormatter;
 
 def Message processData(Message message) {
-    def messageLog = messageLogFactory.createMessageLog(message);
+    def messageLog = messageLogFactory.getMessageLog(message);
     def properties = message.getProperties();
 
     String correlationId = properties.get("correlationId") as String ?: "unknown";

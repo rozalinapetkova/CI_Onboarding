@@ -4,7 +4,7 @@
 
 | Symptom | Likely cause | Fix |
 |---|---|---|
-| Script crashes with NPE on `messageLog.addAttachmentAsString` | Log Level = None at runtime; `createMessageLog` returned null | Add the `if (messageLog != null)` guard, redeploy |
+| Script crashes with NPE on `messageLog.addAttachmentAsString` | Log Level = None at runtime; `getMessageLog` returned null | Add the `if (messageLog != null)` guard, redeploy |
 | No attachments visible in Monitor for any run | Log Level = Error (only Failed runs retain attachments) | Bump to Info via Configure → Log Configuration |
 | Attachments visible but not on the run you just sent | You're looking at an older run; Monitor caches; press Refresh | Refresh; verify timestamp |
 | Attachments visible but unreadable as XML/JSON | Mime type wrong on `addAttachmentAsString` | Pass `application/xml` or `application/json` explicitly |

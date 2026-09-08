@@ -60,7 +60,7 @@ def Message processData(Message message) {
     message.setHeader("roiam_target_system", targetSystem);
     message.setHeader("roiam_target_path", targetPath);
 
-    def messageLog = messageLogFactory.createMessageLog(message);
+    def messageLog = messageLogFactory.getMessageLog(message);
     if (messageLog != null) {
         messageLog.setStringProperty("targetSystem", targetSystem);
         messageLog.setStringProperty("targetPath", targetPath);

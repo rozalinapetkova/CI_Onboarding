@@ -32,7 +32,7 @@ def Message processData(Message message) {
     message.setHeader("CamelHttpResponseCode", 400);
     message.setProperty("rejectAtSender", "true");
 
-    def messageLog = messageLogFactory.createMessageLog(message);
+    def messageLog = messageLogFactory.getMessageLog(message);
     if (messageLog != null) {
         messageLog.setStringProperty("rejectionReason", "missing X-Idempotency-Key");
         messageLog.addAttachmentAsString("rejection", JsonOutput.prettyPrint(JsonOutput.toJson(err)), "application/json");

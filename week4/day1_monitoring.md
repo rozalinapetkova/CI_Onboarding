@@ -27,7 +27,7 @@ Each iFlow has a deployable **Log Configuration** with four levels:
 
 | Level | Captures | Use when | Cost |
 |---|---|---|---|
-| **None** | Nothing — `messageLogFactory.createMessageLog(message)` returns `null` | Never in production for the Order Hub | Free |
+| **None** | Nothing — `messageLogFactory.getMessageLog(message)` returns `null` | Never in production for the Order Hub | Free |
 | **Error** | Default. Failed runs only | Default for stable iFlows | Low |
 | **Info** | All runs, with attachments and properties you set | Production iFlows you actively monitor | Medium |
 | **Debug** | Info + step-level traces | Investigating a specific issue, then revert | High |
@@ -40,7 +40,7 @@ Rule for the Order Hub: **Info level in QA, Info in Prod, never Debug or Trace b
 ## 3. The MessageLog API recap (callback to Week 2 Day 2.4)
 
 ```groovy
-def messageLog = messageLogFactory.createMessageLog(message);
+def messageLog = messageLogFactory.getMessageLog(message);
 if (messageLog != null) {
     messageLog.addAttachmentAsString("incoming-payload", payloadString, "application/json");
     messageLog.setStringProperty("orderId", orderId);
@@ -99,7 +99,7 @@ def Message processData(Message message) {
     }
     message.setHeader("correlationId", correlationId);
 
-    def messageLog = messageLogFactory.createMessageLog(message);
+    def messageLog = messageLogFactory.getMessageLog(message);
     if (messageLog != null) {
         messageLog.setStringProperty("correlationId", correlationId);
     }
@@ -240,7 +240,7 @@ This is the lab's centerpiece. Knowing how to *cause* each status makes you trus
 - **8 MPL statuses:** Pending, Processing, Completed, Failed, Retry, Escalated, Discarded, Abandoned. Alert on Failed + Escalated + (sometimes) Pending; never on Completed alone.
 - **"Completed" is not "successful"** — HTTP error suppression hides 4xx/5xx behind a green status.
 - **Log levels:** Info in QA + Prod, Debug only during active investigation, Trace never beyond a documented incident.
-- **MessageLog pattern:** `def messageLog = messageLogFactory.createMessageLog(message); if (messageLog != null) { messageLog.addAttachmentAsString("name", content, mimeType); messageLog.setStringProperty("key", value); }`. Null guard is mandatory.
+- **MessageLog pattern:** `def messageLog = messageLogFactory.getMessageLog(message); if (messageLog != null) { messageLog.addAttachmentAsString("name", content, mimeType); messageLog.setStringProperty("key", value); }`. Null guard is mandatory.
 - **Correlation:** generate or accept `correlationId` on the inbound step, set as header, register as MPL searchable property. `SAP_MessageProcessingLogID` is per run, `correlationId` is per business transaction.
 - **Custom header search:** tick *MPL custom header property* on the Content Modifier, or call `messageLog.setStringProperty(name, value)` from script. Otherwise it's invisible to operations.
 - **Alert Notification categories** follow `roi.<iflow-stem>.<reason>` (e.g., `roi.orderhub.dlq`).

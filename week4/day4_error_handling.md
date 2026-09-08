@@ -122,7 +122,7 @@ def Message processData(Message message) {
         headers       : headers.collectEntries { k, v -> [k, v?.toString()] }
     ]));
 
-    def messageLog = messageLogFactory.createMessageLog(message);
+    def messageLog = messageLogFactory.getMessageLog(message);
     if (messageLog != null) {
         messageLog.setStringProperty("errorClass", errorClass);
         messageLog.setStringProperty("errorClassification", classification);
@@ -274,7 +274,7 @@ def Message processData(Message message) {
     message.setHeader("Content-Type", "application/json");
     message.setBody(JsonOutput.toJson(alertEvent));
 
-    def messageLog = messageLogFactory.createMessageLog(message);
+    def messageLog = messageLogFactory.getMessageLog(message);
     if (messageLog != null) {
         messageLog.addAttachmentAsString("alert-event", JsonOutput.prettyPrint(JsonOutput.toJson(alertEvent)), "application/json");
     }

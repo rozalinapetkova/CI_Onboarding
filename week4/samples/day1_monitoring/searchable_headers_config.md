@@ -21,7 +21,7 @@ After deploy, the header appears in *Monitor → Message Processing → Advanced
 For values computed inside a script:
 
 ```groovy
-def messageLog = messageLogFactory.createMessageLog(message);
+def messageLog = messageLogFactory.getMessageLog(message);
 if (messageLog != null) {
     messageLog.setStringProperty("orderId", orderId);
     messageLog.setStringProperty("correlationId", correlationId);
