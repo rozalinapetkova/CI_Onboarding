@@ -10,7 +10,7 @@ Companion artifacts for `week4/day1_monitoring.md`. Each file maps to a section 
 | `log_levels_reference.md` | Section 2 — None/Error/Info/Debug/Trace tradeoffs and the production rule |
 | `roiam_setCorrelationId.groovy` | Section 5 — first-step script that generates or accepts `correlationId`, sets header, registers as MPL property |
 | `roiam_logBoundary.groovy` | Section 3 — reusable MessageLog attachment helper with the null-guard pattern |
-| `searchable_headers_config.md` | Section 4 — registering MPL custom header properties from script (the only mechanism; no Content Modifier checkbox exists) |
+| `searchable_headers_config.md` | Section 4 — registering MPL custom header properties from script |
 | `messagelog_attachment_pattern.md` | Section 3 — four-boundary attachment pattern for the Order Hub (incoming-canonical, pre-jms, post-jms, pre-receiver) |
 | `ans_subscription_setup.md` | Section 7 — wiring an Alert Notification subscription end-to-end |
 | `ans_event_categories_reference.md` | Section 7 — `roi.<iflow-stem>.<reason>` naming convention |

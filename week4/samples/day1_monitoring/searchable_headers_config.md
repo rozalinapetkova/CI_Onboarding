@@ -4,7 +4,7 @@ Operations searches the Monitor by **MPL properties**, not by message headers. A
 
 ## Registering a searchable property
 
-There's exactly one mechanism: call `messageLog.addCustomHeaderProperty(name, value)` from a Groovy script. There's no Content Modifier checkbox for this — it's script-only.
+Call `messageLog.addCustomHeaderProperty(name, value)` from a Groovy script:
 
 ```groovy
 def messageLog = messageLogFactory.getMessageLog(message);

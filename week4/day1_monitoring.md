@@ -204,7 +204,15 @@ This is the lab's centerpiece. Knowing how to *cause* each status makes you trus
 ### Steps
 
 1. **Add `roiam_setCorrelationId.groovy`** as the first script step after the inbound HTTP sender. Place it under `script/v2/` inside the iFlow project. Upload via the *Script step dialog* — never the Resources tab (Week 2 Day 2.4 rule).
-2. **Register the searchable headers.** There's no Content Modifier checkbox for this — it's script-only. In the script step that already has each value on hand, call `messageLog.addCustomHeaderProperty(name, value)` (with the null-guard) for `orderId`, `correlationId`, and `customerId`.
+2. **Register the searchable headers.** In the script step that already has each value on hand, register `orderId`, `correlationId`, and `customerId`:
+   ```groovy
+   def messageLog = messageLogFactory.getMessageLog(message);
+   if (messageLog != null) {
+       messageLog.addCustomHeaderProperty("orderId", orderId);
+       messageLog.addCustomHeaderProperty("correlationId", correlationId);
+       messageLog.addCustomHeaderProperty("customerId", customerId);
+   }
+   ```
 3. **Add MessageLog attachments** at four boundaries:
    - After inbound canonicalization → `incoming-canonical`
    - Before JMS send → `pre-jms`
@@ -242,7 +250,7 @@ This is the lab's centerpiece. Knowing how to *cause* each status makes you trus
 - **Log levels:** Info in QA + Prod, Debug only during active investigation, Trace never beyond a documented incident.
 - **MessageLog pattern:** `def messageLog = messageLogFactory.getMessageLog(message); if (messageLog != null) { messageLog.addAttachmentAsString("name", content, mimeType); messageLog.setStringProperty("key", value); }`. Null guard is mandatory.
 - **Correlation:** generate or accept `correlationId` on the inbound step, set as header, register as MPL searchable property. `SAP_MessageProcessingLogID` is per run, `correlationId` is per business transaction.
-- **Custom header search:** call `messageLog.addCustomHeaderProperty(name, value)` from script — the only mechanism that makes a value searchable Monitor-wide. `setStringProperty` is not equivalent: it only shows up in that one script step's own Properties subsection (Debug/Trace level only), never in Search. There's no Content Modifier checkbox for this.
+- **Custom header search:** call `messageLog.addCustomHeaderProperty(name, value)` from script — the mechanism that makes a value searchable Monitor-wide. `setStringProperty` is different: it only shows up in that one script step's own Properties subsection (Debug/Trace level only), never in Search.
 - **Alert Notification categories** follow `roi.<iflow-stem>.<reason>` (e.g., `roi.orderhub.dlq`).
 - **Cloud ALM** for long-term + synthetic + change tracking; **ANS** for "wake somebody up now". Use both.
 - **Simulation** is local-only — no JMS, no ProcessDirect-cross-iFlow, no OAuth.
