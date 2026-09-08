@@ -145,7 +145,7 @@ We'll use the trial endpoint `https://restcountries.com/v3.1/alpha/{code}` (retu
 8. **Inspect in the Monitor.**
    - Find the message in *Message Processing*.
    - Click into *Steps* — note that the Request-Reply has its own sub-step showing the HTTP receiver call, with the response code visible.
-   - In *Custom Headers* search, try filtering by `correlationId=<value>`. (You'll learn proper custom-header search syntax on Day 1.4.)
+   - Try filtering by `correlationId=<value>` in Custom Headers search — it won't find anything yet. Setting a header (as this Content Modifier did) isn't the same as registering it as a searchable MPL property; that's a separate, explicit step you'll do with a script on Day 1.4.
 
 ### Failure injection — the most useful part
 

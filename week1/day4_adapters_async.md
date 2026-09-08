@@ -166,7 +166,15 @@ HTTPS POST ─▶ roi_CustomerEchoService (main)
    - Try replaying the same `customerId` — the Data Store will overwrite. We'll add idempotency in Week 3 so duplicates are *detected* and *rejected*.
 
 6. **Custom-header search.**
-   - In Message Processing search, type `customerId=C-1001`. The system finds messages with that custom header. (For headers to be searchable, they must be set as **MPL custom header properties** — the Content Modifier exposes a checkbox; toggle it on for `customerId`.)
+   - Add a Groovy Script step (or extend an existing one) that registers `customerId` as a searchable MPL property:
+     ```groovy
+     String customerId = message.getHeaders().get("customerId") as String;
+     def messageLog = messageLogFactory.getMessageLog(message);
+     if (messageLog != null) {
+         messageLog.addCustomHeaderProperty("customerId", customerId);
+     }
+     ```
+   - Redeploy, send another test call, then in Message Processing search, type `customerId=C-1001`. The system finds the message by that custom header.
 
 ### Failure cases to provoke
 

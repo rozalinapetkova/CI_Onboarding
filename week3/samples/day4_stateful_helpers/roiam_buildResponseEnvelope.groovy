@@ -44,10 +44,10 @@ def Message processData(Message message) {
     message.setHeader("Content-Type", "application/json");
     message.setProperty("responseEnvelope", envelopeJson);
 
-    def messageLog = messageLogFactory.createMessageLog(message);
+    def messageLog = messageLogFactory.getMessageLog(message);
     if (messageLog != null) {
         messageLog.setStringProperty("orderSequence", orderSequence ?: "n/a");
-        messageLog.setStringProperty("orderId", orderId ?: "n/a");
+        messageLog.addCustomHeaderProperty("orderId", orderId ?: "n/a");
         messageLog.addAttachmentAsString("response-envelope",
             JsonOutput.prettyPrint(envelopeJson), "application/json");
     }

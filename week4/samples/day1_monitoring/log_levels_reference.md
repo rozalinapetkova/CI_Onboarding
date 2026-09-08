@@ -17,10 +17,10 @@ The iFlow's deployable **Log Configuration** controls what the runtime captures.
 When level is **None**, `messageLogFactory.createMessageLog(message)` returns `null`. Every script that calls MessageLog methods must guard against this:
 
 ```groovy
-def messageLog = messageLogFactory.createMessageLog(message);
+def messageLog = messageLogFactory.getMessageLog(message);
 if (messageLog != null) {
     messageLog.addAttachmentAsString("incoming-payload", payloadString, "application/json");
-    messageLog.setStringProperty("orderId", orderId);
+    messageLog.addCustomHeaderProperty("orderId", orderId);
 }
 ```
 

@@ -4,7 +4,7 @@ Operations searches the Monitor by **MPL properties**, not by message headers. A
 
 ## Registering a searchable property
 
-Call `messageLog.addCustomHeaderProperty(name, value)` from a Groovy script:
+Call `messageLog.addCustomHeaderProperty("<header name>", value)` from a Groovy script:
 
 ```groovy
 def messageLog = messageLogFactory.getMessageLog(message);

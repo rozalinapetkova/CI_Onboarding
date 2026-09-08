@@ -3,7 +3,7 @@ import java.time.OffsetDateTime;
 import java.time.format.DateTimeFormatter;
 
 def Message processData(Message message) {
-    def messageLog = messageLogFactory.createMessageLog(message);
+    def messageLog = messageLogFactory.getMessageLog(message);
     def headers = message.getHeaders();
     def properties = message.getProperties();
 
@@ -37,6 +37,14 @@ def Message processData(Message message) {
     if (messageLog != null) {
         messageLog.setStringProperty("errorClassification", errorClassification);
         messageLog.setStringProperty("errorClass", errorClass);
+
+        // Deliberately setStringProperty here, not addCustomHeaderProperty. correlationId is
+        // already registered as a message-wide searchable property earlier in the flow, by
+        // whichever step first accepted or generated it - we don't want to register it again
+        // here. What we do want is for it to show up alongside this step's own error
+        // diagnostics, so it reads as one block when someone opens this specific step's
+        // Properties subsection at Debug or Trace level. setStringProperty gives us exactly
+        // that: step-local visibility, not a second, redundant message-wide registration.
         messageLog.setStringProperty("correlationId", correlationId);
         messageLog.setStringProperty("failedRouteId", failedRouteId ?: "unknown");
         messageLog.setStringProperty("redeliveryCounter", redeliveryCounter as String);

@@ -16,7 +16,7 @@
 | Symptom | Likely cause | Fix |
 |---|---|---|
 | Header `orderId` visible in Run Steps but not in Search dropdown | Forgot to call `messageLog.addCustomHeaderProperty("orderId", orderId)` in script | Add the call (with the null-guard) in the script step that has `orderId` on hand, redeploy |
-| Property registered via `setStringProperty` not searchable | `setStringProperty` is never searchable, regardless of Log Level — it only shows in that step's own Properties subsection (Debug/Trace) | Switch to `messageLog.addCustomHeaderProperty(name, value)` if the goal is Monitor-wide search |
+| Property registered via `setStringProperty` not searchable | `setStringProperty` is never searchable, regardless of Log Level — it only shows in that step's own Properties subsection (Debug/Trace) | Switch to `messageLog.addCustomHeaderProperty("<header name>", value)` if the goal is Monitor-wide search |
 | `correlationId` searchable on Producer but not Consumer | ProcessDirect not configured to allow `correlationId` header through | Add `correlationId` to ProcessDirect Allowed Headers list |
 | Header has different value on Consumer than Producer | Header rewritten by Content Modifier in between | Audit; remove the spurious overwrite |
 | `setStringProperty` value doesn't show up in that step's Properties subsection | Property name has special chars (spaces, `:`, `/`) | Use camelCase, no special chars |

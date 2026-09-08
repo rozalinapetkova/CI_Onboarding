@@ -40,28 +40,34 @@ Rule for the Order Hub: **Info level in QA, Info in Prod, never Debug or Trace b
 ## 3. The MessageLog API recap (callback to Week 2 Day 2.4)
 
 ```groovy
-def messageLog = messageLogFactory.createMessageLog(message);
+def messageLog = messageLogFactory.getMessageLog(message);
 if (messageLog != null) {
     messageLog.addAttachmentAsString("incoming-payload", payloadString, "application/json");
-    messageLog.setStringProperty("orderId", orderId);
-    messageLog.setStringProperty("correlationId", correlationId);
+    messageLog.addCustomHeaderProperty("orderId", orderId);
+    messageLog.addCustomHeaderProperty("correlationId", correlationId);
 }
 ```
 
 Three things to remember:
 
 1. **`addAttachmentAsString(name, content, mimeType)`** — visible in *Monitor → Message Processing → click message → Attachments*. Name them like log file lines: `incoming-payload`, `after-canonicalize`, `before-receiver-call`, `error-snapshot`.
-2. **`setStringProperty(name, value)`** — adds an MPL-searchable key/value at the message level. This is what makes `orderId` and `correlationId` searchable in the Monitor.
+2. **`addCustomHeaderProperty(name, value)`** — adds an MPL-searchable key/value at the message level. This is what makes `orderId` and `correlationId` searchable in the Monitor. `setStringProperty(name, value)` looks similar but isn't a substitute — it only shows up in that one script step's own Properties subsection (Debug/Trace level only), never in Search.
 3. Attachments and properties only show in the Monitor when log level is **Info or higher**. At **Error**, only failed runs see their attachments retained.
 
 Don't log secrets. The tenant log store is read by operations and other developers — same rule as Week 2.
 
 ## 4. Custom header search — where business identifiers come from
 
-The Monitor's *Search* lets operations find messages by built-in fields (timestamp, status, integration flow) and by *custom* identifiers if you registered them. Two ways to register:
+The Monitor's *Search* lets operations find messages by built-in fields (timestamp, status, integration flow) and by *custom* identifiers if you registered them. Register them from a Groovy script:
 
-- **MPL custom header properties** — checkbox on Content Modifier "Message Header" tab. Headers checked here become searchable as message properties.
-- **`messageLog.setStringProperty(name, value)`** — programmatic equivalent. Use this from a Groovy script when the searchable value is computed (e.g., parsed out of a payload).
+```groovy
+def messageLog = messageLogFactory.getMessageLog(message);
+if (messageLog != null) {
+    messageLog.addCustomHeaderProperty("<header name>", value);
+}
+```
+
+`messageLog.setStringProperty(name, value)` looks similar but isn't a substitute — it only shows up in that one script step's own Properties subsection (Debug/Trace level only), never in Search.
 
 For the Order Hub, register at minimum:
 
@@ -99,9 +105,9 @@ def Message processData(Message message) {
     }
     message.setHeader("correlationId", correlationId);
 
-    def messageLog = messageLogFactory.createMessageLog(message);
+    def messageLog = messageLogFactory.getMessageLog(message);
     if (messageLog != null) {
-        messageLog.setStringProperty("correlationId", correlationId);
+        messageLog.addCustomHeaderProperty("correlationId", correlationId);
     }
 
     return message;
@@ -250,7 +256,7 @@ This is the lab's centerpiece. Knowing how to *cause* each status makes you trus
 - **Log levels:** Info in QA + Prod, Debug only during active investigation, Trace never beyond a documented incident.
 - **MessageLog pattern:** `def messageLog = messageLogFactory.getMessageLog(message); if (messageLog != null) { messageLog.addAttachmentAsString("name", content, mimeType); messageLog.setStringProperty("key", value); }`. Null guard is mandatory.
 - **Correlation:** generate or accept `correlationId` on the inbound step, set as header, register as MPL searchable property. `SAP_MessageProcessingLogID` is per run, `correlationId` is per business transaction.
-- **Custom header search:** call `messageLog.addCustomHeaderProperty(name, value)` from script — the mechanism that makes a value searchable Monitor-wide. `setStringProperty` is different: it only shows up in that one script step's own Properties subsection (Debug/Trace level only), never in Search.
+- **Custom header search:** call `messageLog.addCustomHeaderProperty("<header name>", value)` from script — the mechanism that makes a value searchable Monitor-wide. `setStringProperty` is different: it only shows up in that one script step's own Properties subsection (Debug/Trace level only), never in Search.
 - **Alert Notification categories** follow `roi.<iflow-stem>.<reason>` (e.g., `roi.orderhub.dlq`).
 - **Cloud ALM** for long-term + synthetic + change tracking; **ANS** for "wake somebody up now". Use both.
 - **Simulation** is local-only — no JMS, no ProcessDirect-cross-iFlow, no OAuth.

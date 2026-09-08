@@ -139,7 +139,7 @@ For a header to appear in Monitor → Message Processing custom-header search, i
 ```groovy
 def messageLog = messageLogFactory.getMessageLog(message);
 if (messageLog != null) {
-    messageLog.addCustomHeaderProperty(name, value);
+    messageLog.addCustomHeaderProperty("<header name>", value);
 }
 ```
 

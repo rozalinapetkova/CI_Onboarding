@@ -150,16 +150,16 @@ message.setBody(output);                       // String / byte[] / InputStream
 ### Logging — `MessageLog` only
 
 ```groovy
-def messageLog = messageLogFactory.createMessageLog(message);
+def messageLog = messageLogFactory.getMessageLog(message);
 if (messageLog != null) {
-    messageLog.setStringProperty("orderId", orderId);
+    messageLog.addCustomHeaderProperty("orderId", orderId);
     messageLog.addAttachmentAsString("input.json", body, "application/json");
 }
 ```
 
 - **`messageLogFactory` is in scope** — don't import.
-- **Always null-guard** — `createMessageLog` returns null when log level is None.
-- `setStringProperty` makes the value searchable in MPL custom-search.
+- **Always null-guard** — `getMessageLog` returns null when log level is None.
+- `addCustomHeaderProperty` makes the value searchable in MPL custom-search. `setStringProperty` is not the same thing — step-local, Debug/Trace only, never searchable.
 - **No `System.out.println`, no `java.util.logging`, no `println`** — output goes nowhere.
 
 ### Parsing
