@@ -204,7 +204,7 @@ This is the lab's centerpiece. Knowing how to *cause* each status makes you trus
 ### Steps
 
 1. **Add `roiam_setCorrelationId.groovy`** as the first script step after the inbound HTTP sender. Place it under `script/v2/` inside the iFlow project. Upload via the *Script step dialog* — never the Resources tab (Week 2 Day 2.4 rule).
-2. **Register the searchable headers.** On the Content Modifier right after the script: open *Message Header* tab, add `orderId`, `correlationId`, `customerId`, tick *MPL custom header property* on each.
+2. **Register the searchable headers.** There's no Content Modifier checkbox for this — it's script-only. In the script step that already has each value on hand, call `messageLog.addCustomHeaderProperty(name, value)` (with the null-guard) for `orderId`, `correlationId`, and `customerId`.
 3. **Add MessageLog attachments** at four boundaries:
    - After inbound canonicalization → `incoming-canonical`
    - Before JMS send → `pre-jms`
@@ -230,7 +230,7 @@ This is the lab's centerpiece. Knowing how to *cause* each status makes you trus
 ### Failure cases to provoke
 
 - Forget the `messageLog != null` guard, set Log Level to None on the iFlow → the script crashes the run with NPE. *Lesson:* the guard is mandatory.
-- Skip the *MPL custom header property* checkbox → `orderId` is set but not searchable. Operations cannot find the message by business identifier. *Lesson:* setting the header isn't enough.
+- Skip the `messageLog.addCustomHeaderProperty(...)` call → `orderId` is set but not searchable. Operations cannot find the message by business identifier. *Lesson:* setting the header isn't enough — it has to be explicitly registered from script.
 - Forget to add `correlationId` to the ProcessDirect Allowed Headers list (if your Order Hub uses ProcessDirect anywhere) → trace breaks at the hop. *Lesson:* every ProcessDirect needs an explicit allow-list (Week 1 callback).
 
 ---
@@ -240,9 +240,9 @@ This is the lab's centerpiece. Knowing how to *cause* each status makes you trus
 - **8 MPL statuses:** Pending, Processing, Completed, Failed, Retry, Escalated, Discarded, Abandoned. Alert on Failed + Escalated + (sometimes) Pending; never on Completed alone.
 - **"Completed" is not "successful"** — HTTP error suppression hides 4xx/5xx behind a green status.
 - **Log levels:** Info in QA + Prod, Debug only during active investigation, Trace never beyond a documented incident.
-- **MessageLog pattern:** `def messageLog = messageLogFactory.createMessageLog(message); if (messageLog != null) { messageLog.addAttachmentAsString("name", content, mimeType); messageLog.setStringProperty("key", value); }`. Null guard is mandatory.
+- **MessageLog pattern:** `def messageLog = messageLogFactory.getMessageLog(message); if (messageLog != null) { messageLog.addAttachmentAsString("name", content, mimeType); messageLog.setStringProperty("key", value); }`. Null guard is mandatory.
 - **Correlation:** generate or accept `correlationId` on the inbound step, set as header, register as MPL searchable property. `SAP_MessageProcessingLogID` is per run, `correlationId` is per business transaction.
-- **Custom header search:** tick *MPL custom header property* on the Content Modifier, or call `messageLog.setStringProperty(name, value)` from script. Otherwise it's invisible to operations.
+- **Custom header search:** call `messageLog.addCustomHeaderProperty(name, value)` from script — the only mechanism that makes a value searchable Monitor-wide. `setStringProperty` is not equivalent: it only shows up in that one script step's own Properties subsection (Debug/Trace level only), never in Search. There's no Content Modifier checkbox for this.
 - **Alert Notification categories** follow `roi.<iflow-stem>.<reason>` (e.g., `roi.orderhub.dlq`).
 - **Cloud ALM** for long-term + synthetic + change tracking; **ANS** for "wake somebody up now". Use both.
 - **Simulation** is local-only — no JMS, no ProcessDirect-cross-iFlow, no OAuth.
