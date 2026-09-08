@@ -9,7 +9,7 @@ Two ways to subscribe to events on SAP Integration Suite. They're not competitor
 - A "Subscribe" wizard that creates the AMQP subscription with sensible defaults.
 - A managed relationship — if SAP changes the event schema, the catalog updates and you get notified.
 
-**Direct AMQP adapter** — you drag an AMQP sender onto your iFlow, configure the queue name, subscription name, credentials yourself. You're responsible for knowing the topic name, the schema, and the auth setup.
+**Direct AMQP adapter** — you drag an AMQP sender onto your iFlow, configure the queue name and credentials yourself. You're responsible for knowing the topic name, the schema, and the auth setup.
 
 Both end up doing the same thing at runtime: AMQP subscription to Event Mesh. Intelligent Services is a wizard on top; direct AMQP is the raw building block.
 
@@ -54,7 +54,7 @@ Both end up doing the same thing at runtime: AMQP subscription to Event Mesh. In
 
 The Day 4.3 lab uses **direct AMQP** even though `SalesOrder.Created` is in the Intelligent Services catalog. Three reasons:
 
-1. **Teaching value.** The wizard hides the queue, the subscription name, the acknowledgement mode — exactly the things you need to understand for production debugging. After you've done direct AMQP once, the wizard becomes a quality-of-life shortcut rather than a magic box.
+1. **Teaching value.** The wizard hides the queue creation and binding — exactly the thing you need to understand for production debugging. After you've done direct AMQP once, the wizard becomes a quality-of-life shortcut rather than a magic box.
 2. **Wildcard preparation.** Stretch goal: subscribe to `SalesOrder/+/v1` for both Created and Changed. The wizard doesn't expose this; direct AMQP does.
 3. **The pattern transfers.** Once you understand direct AMQP, subscribing to non-SAP events (a partner's RabbitMQ, an internal Mule producer) reuses the same skills.
 
@@ -64,9 +64,9 @@ In a real production rollout where you're subscribing to dozens of S/4 events, *
 
 You can switch later. If you start with Intelligent Services and need wildcards or cross-tenant federation:
 
-1. Note the queue name and subscription name the wizard created — they're visible in the AMQP adapter properties on the iFlow.
+1. Note the queue name the wizard created — it's visible in the AMQP adapter properties on the iFlow.
 2. Delete the iFlow's IS-subscription step.
-3. Add a direct AMQP sender, point at the same queue and subscription name. The broker doesn't care which side of the adapter UI you came from — it sees the same AMQP client.
+3. Add a direct AMQP sender, point at the same queue. The broker doesn't care which side of the adapter UI you came from — it sees the same AMQP client.
 4. Test with a replayed event from a paused subscription, verify it still works.
 
 Going the other direction (direct AMQP → IS) is harder because IS owns the queue naming; you'd let IS create a new queue and migrate the binding in Event Mesh cockpit.

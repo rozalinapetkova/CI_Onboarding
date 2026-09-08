@@ -276,7 +276,7 @@ def Message processData(Message message) {
     }
     String sig = hex.toString();
 
-    def messageLog = messageLogFactory.createMessageLog(message);
+    def messageLog = messageLogFactory.getMessageLog(message);
     if (messageLog != null) {
         messageLog.setStringProperty("signatureAlgo", algo);
     }

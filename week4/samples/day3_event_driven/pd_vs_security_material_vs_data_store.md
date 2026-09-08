@@ -41,7 +41,7 @@ Three CI storage mechanisms. They look superficially similar (key-value, tenant-
 **Yes:**
 - OAuth client id / secret pairs (`orderhub-qa-oauth`)
 - Basic auth usernames + passwords
-- AMQP / JMS credentials (`event_mesh_amqp`)
+- AMQP / JMS credentials (`event_mesh_amqp_<your_initials>`)
 - Private keys and certificates for mTLS
 - API keys with secret components
 - Any value where exposure to operators is itself a problem
@@ -104,7 +104,7 @@ The Order Hub uses all four:
 | Value | Storage | Why |
 |---|---|---|
 | OAuth client id / secret for downstream OMS | Security Material (`orderhub-dev-oauth`) | Secret — must be encrypted, rotated, not visible in code or UI |
-| AMQP credentials for Event Mesh | Security Material (`event_mesh_amqp`) | Secret |
+| AMQP credentials for Event Mesh | Security Material (`event_mesh_amqp_<your_initials>`) | Secret |
 | Per-event-type routing decision | Partner Directory (`ROI_ORDERHUB_ROUTING/default`) | Changes without redeploy; ops-editable; not secret |
 | OMS endpoint base URL | Externalized parameter (`OMSEndpointBase`) | Differs Dev/QA/Prod but doesn't change at runtime; configured at deploy time |
 | Idempotency dedup entries | Data Store (`roi_orderhub_event_dedup`) | iFlow-written state; per-message; 7-day TTL |

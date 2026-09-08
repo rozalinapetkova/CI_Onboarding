@@ -27,7 +27,7 @@ Each iFlow has a deployable **Log Configuration** with four levels:
 
 | Level | Captures | Use when | Cost |
 |---|---|---|---|
-| **None** | Nothing — `messageLogFactory.createMessageLog(message)` returns `null` | Never in production for the Order Hub | Free |
+| **None** | Nothing — `messageLogFactory.getMessageLog(message)` returns `null` | Never in production for the Order Hub | Free |
 | **Error** | Default. Failed runs only | Default for stable iFlows | Low |
 | **Info** | All runs, with attachments and properties you set | Production iFlows you actively monitor | Medium |
 | **Debug** | Info + step-level traces | Investigating a specific issue, then revert | High |

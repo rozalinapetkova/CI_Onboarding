@@ -47,13 +47,13 @@ Differences from the JMS adapter you used in Week 3:
 | Aspect | JMS (CI broker) | AMQP (Event Mesh) |
 |---|---|---|
 | Broker | CI tenant-internal | External BTP service |
-| Counted toward metering | No | Yes (sender), no (consumer) — check your plan |
+| Counted toward metering | No | Publisher: possibly (check your plan); Consumer (your Order Hub's AMQP entry): no |
 | Auth | Internal | Client credentials via Security Material |
 | Destination naming | `flat-queue-name` | `queue:my-queue` or `topic:my-topic` (the queue is durable, the topic is the routing target) |
 | QoS | At-Least-Once / EO | At-Least-Once typically |
 | Retry semantics | Configured on JMS adapter | Configured on AMQP adapter; broker also re-delivers |
 
-For the lab: the AMQP adapter sender (subscriber) on the Order Hub subscribes to a queue `roi-orderhub-salesorder-created`. The queue is itself subscribed to a topic `s4/sap/s4hanacloud/ce/sales/v1/SalesOrder/Created/v1` — that wiring is done in the Event Mesh cockpit, not the CI iFlow.
+For the lab: the AMQP adapter sender (subscriber) on the Order Hub subscribes to a queue `roi-orderhub-salesorder-created-<your_initials>`. The queue is itself subscribed to a topic `s4/sap/s4hanacloud/ce/sales/v1/SalesOrder/Created/v1` — that wiring is done in the Event Mesh cockpit, not the CI iFlow.
 
 ## 4. Topic naming — the convention you'll see
 
@@ -88,18 +88,17 @@ Don't use Intelligent Services when:
 
 For the lab: we use direct AMQP subscription to keep the mechanics visible. In real life on this team, you'd use Intelligent Services for the SAP-published S/4 events and direct AMQP for everything else.
 
-## 6. Durable subscriptions — what "durable" actually means
+## 6. Durability — what it actually means, and where it's actually set
 
-A subscription is **durable** when the broker holds events for the consumer even when the consumer is offline. AMQP supports both durable and non-durable; for any production iFlow, **always durable**.
+A queue is **durable** when the broker holds events for the consumer even when the consumer is offline. For any production iFlow, you want this.
 
-Why: if your iFlow is undeployed for a transport, a tenant restart, or a scheduled maintenance window, events keep arriving at S/4. Without a durable subscription, those events are gone forever — silently. With a durable subscription, they pile up in the queue and drain when you come back online.
+Why: if your iFlow is undeployed for a transport, a tenant restart, or a scheduled maintenance window, events keep arriving at S/4. Without durability, those events are gone forever — silently. With it, they pile up in the queue and drain when you come back online.
 
-In the AMQP sender adapter on the Order Hub, the relevant settings:
+**This isn't something you configure in the CPI adapter.** It's a property of the queue itself, set once when the queue is created in the Event Mesh cockpit — which is exactly what the trainer already did for you (see Setup, below): the queue `roi-orderhub-salesorder-created-<your_initials>` was created durable and bound to the topic before this lab started. On the CPI side, the AMQP sender adapter just points at that queue by name. There's no separate subscription-identity field to set, and no adapter-level acknowledgement-mode toggle either — whether a message gets redelivered is governed by whether the iFlow run completes successfully, not a setting you pick.
 
-- *Subscription Type*: **Durable**.
-- *Subscription Name*: stable, e.g., `roi-orderhub-salesorder-v1`. This is the broker-side identifier; renaming creates a new durable subscription and abandons the old one's backlog. Choose carefully.
-- *Acknowledgement Mode*: **Client Acknowledgement** (CI sends ACK only when the iFlow run completes successfully).
-- *QoS*: **At-Least-Once** — your consumer must be idempotent (next section).
+Practical implication: it's recreating or renaming the *queue* that would abandon the backlog — not renaming some adapter-side subscription identity, because there isn't one to rename.
+
+**QoS** is **At-Least-Once** — your consumer must be idempotent (next section).
 
 ## 7. Idempotency — your most important defense
 
@@ -207,7 +206,7 @@ def Message processData(Message message) {
     message.setHeader("roiam_target_system", targetSystem);
     message.setHeader("roiam_target_path", targetPath);
 
-    def messageLog = messageLogFactory.createMessageLog(message);
+    def messageLog = messageLogFactory.getMessageLog(message);
     if (messageLog != null) {
         messageLog.setStringProperty("targetSystem", targetSystem);
         messageLog.addAttachmentAsString("resolved-route", JsonOutput.toJson(matched), "application/json");
@@ -247,10 +246,10 @@ Operations can edit this in the PD cockpit and the change is picked up at the ne
 ## 10. Putting it together — the Order Hub event subscription flow
 
 ```
-[AMQP Sender Adapter]                       (subscribes to roi-orderhub-salesorder-created)
+[AMQP Sender Adapter]                       (subscribes to roi-orderhub-salesorder-created-<your_initials>)
         |
         v
-[Script: roiam_setCorrelationId]            (correlationId from CloudEvents 'id', or fresh UUID)
+[Script: roiam_setCorrelationId_event]      (correlationId from CloudEvents 'id', or fresh UUID)
         |
         v
 [Router: Idempotency Check via Data Store]  (key = CloudEvents 'id', entity = roi_orderhub_event_dedup)
@@ -292,59 +291,66 @@ You haven't seen these in the request-reply world:
 ### Setup
 
 - Order Hub deployed on Dev tenant with monitoring (Day 4.1) and recently transported to QA (Day 4.2).
-- Event Mesh service instance bound to Dev tenant. AMQP credentials in Security Material as `event_mesh_amqp`.
+- Event Mesh service instance bound to Dev tenant. AMQP credentials in Security Material as `event_mesh_amqp_<your_initials>`.
 - Trainer pre-created in Event Mesh cockpit:
-  - Queue `roi-orderhub-salesorder-created`.
+  - Queue `roi-orderhub-salesorder-created-<your_initials>`.
   - Subscription binding the queue to topic `s4/sap/s4hanacloud/ce/sales/v1/SalesOrder/Created/v1`.
 - Trainer pre-created in Partner Directory:
   - Partner `ROI_ORDERHUB_ROUTING`.
   - Binary parameter `default` with the JSON routing config above.
-- A test event publisher: trainer has a small "send fake S/4 event" helper iFlow that emits CloudEvents-shaped messages to the topic. Trainees use this to test without needing an actual S/4 tenant.
+- **No trainer-provided event source.** S/4 isn't available for the lab, and nothing publishes test events for you — that's Step 2 below, and it's on you to build.
+- **No pre-created Event Mesh credential either.** That's Step 1.
 
 ### Steps
 
-1. **Add the AMQP entry branch** to the Order Hub. Drag a new sender adapter onto the canvas, type AMQP, configured for the Event Mesh credentials. Set:
-   - *Address Type*: Queue.
-   - *Address Name*: `roi-orderhub-salesorder-created`.
-   - *Subscription Name*: `roi-orderhub-salesorder-v1`.
-   - *Subscription Type*: Durable.
-   - *Acknowledgement*: Client Acknowledgement.
-2. **First step after the AMQP sender:** the existing `roiam_setCorrelationId.groovy` from Day 4.1, modified to pick up CloudEvents `id` if no `correlationId` header is present:
+1. **Create the Event Mesh OAuth2 credential.** Both the Order Hub's AMQP Sender and the event publisher iFlow you're about to build need this — do it first.
+   - Find your **Event Mesh service instance** in the BTP subaccount.
+   - Open its **Service Key** — the client ID, client secret, and token endpoint you need come from there. Don't invent these values; they're specific to your Event Mesh instance.
+   - *Monitor → Integrations → Security Material → Create → OAuth2 Client Credentials*. Name it `event_mesh_amqp_<your_initials>`, and paste in the client ID, secret, and token URL from the service key.
+2. **Build a test event publisher iFlow.** A small standalone iFlow, `roi_<your_initials>_EventPublisher`, whose only job is mocking what S/4 would actually send. Three steps:
+   - **HTTPS Sender** — a plain trigger endpoint, e.g. `/roi/publishevent/<your_initials>`. This is just how *you* fire a test event on demand; it has nothing to do with the real subscription mechanics.
+   - **Content Modifier** — builds a hardcoded fake `SalesOrder.Created` payload and sets the CloudEvents headers on it: `ce-specversion` (`1.0`), `ce-type` (`sap.s4.beh.salesorder.v1.SalesOrder.Created.v1`), `ce-source` (any placeholder URI), `ce-subject`, and `ce-id` (pass through from the inbound `ce-id` header if the caller supplied one, so you control it per test).
+   - **AMQP Receiver** — publishes onto the actual topic. Real fields:
 
-   ```groovy
-   String correlationId = headers.get("correlationId") as String;
-   if (correlationId == null || correlationId.trim().isEmpty()) {
-       correlationId = headers.get("ce-id") as String;
-   }
-   if (correlationId == null || correlationId.trim().isEmpty()) {
-       correlationId = UUID.randomUUID().toString();
-   }
-   ```
+   | Field | Value | Note |
+   |---|---|---|
+   | Host | `<your-event-mesh-instance>.eventmesh.integration.cloud.sap` | Same Event Mesh instance the Order Hub's AMQP Sender points at |
+   | Port | `443` | |
+   | Destination Type | `Topic` | Publishing *into* the topic, not a queue directly — Event Mesh routes topic → queue from there |
+   | Destination Name | `s4/sap/s4hanacloud/ce/sales/v1/SalesOrder/Created/v1` | Same topic the Order Hub's queue is bound to |
+   | Authentication | `Transport_OAuth2` | |
+   | Credential Name | `event_mesh_amqp_<your_initials>` | The OAuth2 client credential set up earlier in Security Material |
+   | Connect with TLS | `Yes` | |
+   | Delivery | `Persistent` | |
+   | Message Protocol | `AMQP 1.0` | |
 
-   Save the updated script via the *Script step dialog → Upgrade*.
-3. **Idempotency guard.** Add a Data Store *Get* step keyed on `${header.ce-id}`, entity `roi_orderhub_event_dedup`. Branch:
+   Deploy this once and keep it around — you'll reuse it through the rest of this lab and Day 4.4.
+3. **Add the AMQP entry branch** to the Order Hub. Drag a new sender adapter onto the canvas, type AMQP, configured for the Event Mesh credentials. Set:
+   - *Queue Name*: `roi-orderhub-salesorder-created-<your_initials>` — the durable queue the trainer already created and bound to the topic (see Setup). Nothing else to configure here: durability and acknowledgement aren't adapter-level settings.
+4. **First step after the AMQP sender:** use `roiam_setCorrelationId_event.groovy` (Day 4.3 samples — not the plain Day 4.1 script). It's already built for this: falls back from the `correlationId` header → CloudEvents `ce-id` → a fresh UUID, and additionally registers `eventId`, `eventType`, `eventSource`, and `eventSubject` as step-local diagnostic properties. Upload via the *Script step dialog* — a plain Save, not *Upgrade* (that's for migrating the script's engine/API version, not for saving content).
+5. **Idempotency guard.** Add a Data Store *Get* step keyed on `${header.ce-id}`, entity `roi_orderhub_event_dedup`. Branch:
    - If found → script that adds `MessageLog` attachment `duplicate-event` and routes to a no-op end.
    - If not found → continue.
-4. **Add the routing-resolution script.** Save `roiam_resolveRoutingFromPd.groovy` from section 9. Place under `scripts/collections/resilientOrderHub/`. Inside the iFlow project, under `script/v2/`. Upload via Script step dialog. Place after the idempotency check.
+6. **Add the routing-resolution script.** Save `roiam_resolveRoutingFromPd.groovy` from section 9. Place under `scripts/collections/resilientOrderHub/`. Inside the iFlow project, under `script/v2/`. Upload via Script step dialog. Place after the idempotency check.
 
    The script expects a header `roiam_routing_destination` — set this with a Content Modifier before the script call. Fixed value `default` for the lab; in real life this could be derived from the event's `subject` or another header.
-5. **Map CloudEvents payload → canonical XML.** Re-use the canonical mapping from Week 2 (`vendor XML → canonical`) but feed the JSON-shaped CloudEvents `data` through the JSON-branch path instead. The output should be identical to the HTTP-triggered path's canonical XML — that's the point.
-6. **Send to JMS.** The same JMS producer step that the HTTP path uses. Both entry points converge here.
-7. **Idempotency commit.** On the success branch, *after* JMS send completes, write the CloudEvents `id` into the dedup Data Store with a 7-day TTL. (Don't write earlier — failed events should not be marked as seen.)
-8. **Deploy.** Test with the trainer's helper iFlow:
+7. **Map CloudEvents payload → canonical XML.** Re-use the canonical mapping from Week 2 (`vendor XML → canonical`) but feed the JSON-shaped CloudEvents `data` through the JSON-branch path instead. The output should be identical to the HTTP-triggered path's canonical XML — that's the point.
+8. **Send to JMS.** The same JMS producer step that the HTTP path uses. Both entry points converge here.
+9. **Idempotency commit.** On the success branch, *after* JMS send completes, write the CloudEvents `id` into the dedup Data Store with a 7-day TTL. (Don't write earlier — failed events should not be marked as seen.)
+10. **Deploy.** Test with the event publisher iFlow you built in Step 2:
    - Send a fake `SalesOrder.Created` event with `id = evt-001`. Verify Order Hub MPL Completed, JMS message visible, downstream OMS receives.
    - Replay the same event with `id = evt-001`. Verify MPL Discarded (or your equivalent), `duplicate-event` attachment present.
    - Send `evt-002` with a malformed payload. Verify MPL Failed (Day 4.4 will tighten this).
-9. **Edit the PD parameter live.** While the iFlow is running, change `routes.default.targetPath` in the Partner Directory cockpit. Send another event. Verify the new path is picked up *without* redeploying the iFlow. Operations magic — this is why PD exists.
-10. **Changelog entry.** Write `changelog/roi_ResilientOrderHub/<YYYY-MM-DD>_event_subscription_added.txt`. Note the topic, the queue, the subscription name, the PD partner+parameter used, and the test event IDs you fired.
+11. **Edit the PD parameter live.** While the iFlow is running, change `routes.default.targetPath` in the Partner Directory cockpit. Send another event. Verify the new path is picked up *without* redeploying the iFlow. Operations magic — this is why PD exists.
+12. **Changelog entry.** Write `changelog/roi_ResilientOrderHub/<YYYY-MM-DD>_event_subscription_added.txt`. Note the topic, the queue name, the PD partner+parameter used, and the test event IDs you fired.
 
 ### Failure cases to provoke
 
-- **Forget the durable flag.** Undeploy the iFlow for 60 seconds, send an event, redeploy → event is *gone*. Re-mark Durable, try again, event survives. *Lesson:* always durable.
+- **Durability isn't yours to toggle.** The queue the trainer set up is already durable, so this exact failure isn't something you can provoke from the iFlow side — durability lives in Event Mesh cockpit, not the adapter. If you want to *see* the non-durable case, ask the trainer to point your adapter at a temporary non-durable queue: undeploy the iFlow for 60 seconds, send an event, redeploy → event is *gone*. *Lesson:* durability is a queue-creation decision, not a per-deployment toggle.
 - **Skip the idempotency check.** Replay the same event 10 times; OMS gets the order 10 times. *Lesson:* dedup at the entry point, not on the OMS side.
 - **Wrong `pid`/`parameterId` in the PD script.** Script throws "parameter not found"; iFlow fails; alerting fires. *Lesson:* PD lookup failures must produce loud errors, not silent skips.
 - **Edit PD parameter to invalid JSON.** Script throws on `JsonSlurper.parse`; iFlow fails. *Lesson:* PD changes need the same review discipline as iFlow changes — a second pair of eyes before saving.
-- **Subscription name change.** Change `roi-orderhub-salesorder-v1` → `roi-orderhub-salesorder-v2`, redeploy. The old subscription's backlog is orphaned on the broker. *Lesson:* subscription names are stable identity.
+- **Queue repointing.** Change the adapter's Queue Name to a different (empty) queue, redeploy. The original queue's backlog just sits there, undrained — nothing is consuming it anymore. *Lesson:* Queue Name is the stable identity; don't repoint it casually.
 
 ---
 
@@ -354,7 +360,7 @@ You haven't seen these in the request-reply world:
 - **AMQP 1.0** is the wire protocol Event Mesh exposes. CI's AMQP adapter is the subscriber; topic-to-queue routing is configured in Event Mesh, not in CI.
 - **Topic naming** for S/4HANA Cloud: `s4/sap/s4hanacloud/ce/<context>/v1/<Entity>/<Verb>/v1`.
 - **Intelligent Services** is the curated catalog of SAP-published events with a wizard; under the hood it's still Event Mesh + AMQP. Use direct AMQP for non-SAP or advanced subscriptions.
-- **Always durable** subscriptions. Subscription Name is stable identity — renaming abandons the backlog.
+- **Always durable** queues — set once in the Event Mesh cockpit at queue-creation time, not a CPI adapter field. Recreating or renaming the queue is what abandons the backlog.
 - **Idempotency** is the consumer's job. Key on CloudEvents `id`; Data Store dedup with bounded TTL (7 days for the Order Hub).
 - **Partner Directory** is for *operational routing config* that changes without redeploy. Not for secrets, not for blobs, not for application data.
 - **PD Groovy access:** `ITApiFactory.getApi(PartnerDirectoryService.class, null)` → `getParameter(parameterId, pid, BinaryData)` → `JsonSlurper().parse(new ByteArrayInputStream(binary.getData()))`. Same shape as `scripts/standalone/roiam_loadGrcProxyConfig.groovy`.

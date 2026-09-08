@@ -86,15 +86,14 @@ If you see one of these: don't try to "fix" the topic name on the producer side.
 In BTP cockpit → Event Mesh service instance → Service Key → open Event Mesh dashboard:
 
 - **Topics** tab: shows topics that have been published to OR subscribed by something. Topics that exist only as a future subscription target aren't listed until something connects.
-- **Queues** tab: shows queues and their bindings to topics. The Order Hub's queue `roi-orderhub-salesorder-created` is bound here to the SalesOrder/Created topic — that binding is set up in the cockpit, not in the iFlow.
+- **Queues** tab: shows queues and their bindings to topics. The Order Hub's queue `roi-orderhub-salesorder-created-<your_initials>` is bound here to the SalesOrder/Created topic — that binding is set up in the cockpit, not in the iFlow.
 
 ## In the iFlow's AMQP sender adapter
 
 You configure the **queue** name, not the topic:
 
 ```
-Address Type: Queue
-Address Name: roi-orderhub-salesorder-created
+Queue Name: roi-orderhub-salesorder-created-<your_initials>
 ```
 
 The topic-to-queue routing is done in Event Mesh. This means:

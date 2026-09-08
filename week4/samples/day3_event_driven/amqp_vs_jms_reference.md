@@ -8,15 +8,15 @@ You used the **JMS adapter** in Week 3 to put messages onto a CI-internal broker
 |---|---|---|
 | **Broker location** | CI tenant-internal | External BTP service (Event Mesh) |
 | **Wire protocol** | OpenWire / proprietary | AMQP 1.0 (OASIS standard) |
-| **Counted toward metering** | No | Sender flow: yes; Subscriber: no (verify your plan) |
+| **Counted toward metering** | No | Publisher (e.g. an EventPublisher iFlow): possibly, verify your plan; Consumer (the Order Hub's AMQP entry): no |
 | **Auth** | Internal — no creds needed in iFlow | Client credentials via Security Material |
 | **Destination naming** | Flat queue name, e.g. `roi.orderhub.queue` | `queue:my-queue` or `topic:my-topic` |
 | **Topic support** | No (CI's JMS is queue-only) | Yes — publish-subscribe with multiple consumers per topic |
-| **Durable subscription concept** | Always durable (it's a queue) | Configurable — must explicitly choose Durable |
+| **Durable subscription concept** | Always durable (it's a queue) | Same — durability is a property of the queue, set in Event Mesh cockpit at creation, not an adapter field |
 | **QoS** | At-Least-Once, EOIO available | At-Least-Once (typical), some setups can do EO |
 | **Retry / DLQ** | Configured on the JMS adapter, broker-side | Configured on AMQP adapter AND on broker (Event Mesh queue settings) |
 | **Cross-tenant visibility** | Only this tenant | Event Mesh can be shared across tenants and even non-SAP systems |
-| **Subscription "name" identity** | N/A (the queue IS the identity) | Subscription Name is broker-side identity; renaming abandons backlog |
+| **Subscription "name" identity** | N/A (the queue IS the identity) | Same here — the queue IS the identity on this adapter too; there's no separate subscription-name field |
 | **Throughput ceiling** | Tens of thousands/sec | Lower — Event Mesh charges per message |
 
 ## When to use which
@@ -38,27 +38,21 @@ The Order Hub uses **both**:
 
 This is the standard pattern: AMQP for external eventing, JMS for internal queueing.
 
-## What "Subscription Name" means in AMQP
+## What identifies a consumer in AMQP, on this adapter
 
-Concept absent from JMS. Important enough to deserve its own callout:
+There's no separate "subscription" registration to name on CPI's AMQP Sender — unlike some AMQP client libraries that expose durable-subscription identities independent of the queue, this adapter just consumes from the queue you point it at. The queue name is the whole identity.
 
-- A **subscription** is a stateful registration with the broker that says "deliver matching events to this consumer."
-- The **Subscription Name** is the broker-side identifier for that registration.
-- If the consumer disconnects, the broker holds undelivered events under the Subscription Name.
-- When the consumer reconnects with the same Subscription Name, delivery resumes from where it left off.
-- If the consumer reconnects with a **different** Subscription Name, the broker treats it as a fresh subscription. The old backlog is orphaned on the broker — eventually cleaned up by the broker's retention policy.
+- If the consumer disconnects, the broker holds undelivered events on the durable **queue** — not under some separate subscription name.
+- When the consumer reconnects to the same queue, delivery resumes from where it left off.
+- If you point the adapter at a **different** queue, you're consuming different events entirely — the original queue's backlog just sits there, untouched, until something else drains it.
 
-For the Order Hub: Subscription Name is `roi-orderhub-salesorder-v1`. **Never rename it during the iFlow's lifetime.** If you must (e.g., schema-breaking change requires a v2 subscription), follow a planned migration: bring up v2 alongside v1, drain v1 to zero depth on the broker, then remove v1.
+For the Order Hub: the queue is `roi-orderhub-salesorder-created-<your_initials>`. **Don't casually repoint the adapter at a different queue.** If you genuinely need a breaking change (schema-incompatible payload, for example), stand up a new queue bound to a new topic version, migrate deliberately, and drain the old one before removing it.
 
-## Acknowledgement modes — what each means for retry
+## Acknowledgement — automatic, not a setting
 
-| Mode | What happens on failure |
-|---|---|
-| **Auto-Acknowledgement** | Broker acknowledges as soon as it delivers. If your iFlow crashes mid-processing, the event is lost. **Don't use** in production. |
-| **Client Acknowledgement** | CI sends ACK only when the iFlow run completes successfully. If the run fails, broker re-delivers. **Use this.** |
-| **Manual** | Your script explicitly sends ACK. Very rare; use Client Acknowledgement instead. |
+There's no acknowledgement-mode field to choose on this adapter. What actually happens: the adapter acknowledges a message to the broker when the iFlow run that consumed it completes successfully. If the run fails, no acknowledgement is sent, and the broker redelivers (governed by the adapter's Max. Number of Retries). This is effectively "client acknowledgement" behavior — it's just not a mode you select, it's simply how the adapter works.
 
-Client Acknowledgement is the default and the correct choice. It implies at-least-once delivery: duplicates can happen if the iFlow processes the message but crashes before the ACK lands. Hence: idempotency is mandatory.
+This implies at-least-once delivery: duplicates can happen if the iFlow processes the message but crashes before completing. Hence: idempotency is mandatory.
 
 ## What you CAN'T do with the AMQP adapter
 

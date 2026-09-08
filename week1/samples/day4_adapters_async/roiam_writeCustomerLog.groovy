@@ -8,7 +8,7 @@ import java.io.Reader;
 // Runs at the start of roi_<initials>_CustomerLogger, before the Data Store Write step.
 
 def Message processData(Message message) {
-    def messageLog = messageLogFactory?.createMessageLog(message);
+    def messageLog = messageLogFactory?.getMessageLog(message);
 
     Reader reader = message.getBody(java.io.Reader);
     def merged = new JsonSlurper().parse(reader);

@@ -1,116 +1,89 @@
-# Durable subscription — adapter config and recovery semantics
+# Durable queues — how they actually work, and what the AMQP adapter actually configures
 
-The single most important setting on the AMQP adapter is **Durable**. Get it wrong and silent message loss is guaranteed. This doc covers what the setting does, every related field on the adapter, and what recovery looks like in each combination.
+The single most important property here is whether the queue is **durable**. Get it wrong and silent message loss is guaranteed. This doc covers what durability actually means, where it's actually set, every real field on the AMQP Sender adapter, and what recovery looks like.
 
 ## What "durable" means at the broker level
 
-When a consumer (your iFlow) connects to Event Mesh and says "I want events on this queue":
+When your iFlow's AMQP Sender adapter connects to a queue in Event Mesh:
 
-- **Non-durable subscription**: the broker delivers events that arrive *while you're connected*. If you disconnect, the broker forgets you ever subscribed. Events that arrive while you're away are dropped (or routed to other subscribers if any).
-- **Durable subscription**: the broker remembers you under a **Subscription Name**. If you disconnect, events keep accumulating in the queue under your name. When you reconnect with the same Subscription Name, you get everything that piled up.
+- **Non-durable queue**: the broker delivers events that arrive *while a consumer is connected*. If nothing is connected, events that arrive are dropped (or routed elsewhere if there are other subscribers).
+- **Durable queue**: the broker persists events regardless of whether a consumer is currently connected. Disconnect, and events keep accumulating; reconnect, and you get everything that piled up.
 
-For production iFlows: **always durable**. Non-durable is only useful for ephemeral monitoring/debugging consumers (e.g., a developer tail).
+For production iFlows: **always durable**. Non-durable is only useful for ephemeral monitoring/debugging consumers.
 
-## Every relevant field on the AMQP Sender adapter
+**Where this is set: the Event Mesh cockpit, at queue-creation time — not the CPI adapter.** Durability is a property of the queue itself. The CPI AMQP Sender adapter just points at a queue by name; it has no field for choosing durability, because that decision was already made when the queue was created.
 
-Below are the settings on the AMQP Sender (subscriber) adapter as they appear in CI's iFlow editor. Recommended values for the Order Hub:
+## Every real field on the AMQP Sender adapter
 
 | Field | Recommended value | Why |
 |---|---|---|
-| **Connection > Credential Name** | `event_mesh_amqp` (Security Material alias) | Decouples credential rotation from iFlow code |
-| **Connection > Address Type** | `Queue` | Always queue; Event Mesh routes topic→queue, your iFlow consumes from queue |
-| **Connection > Address Name** | `roi-orderhub-salesorder-created` | The queue created by the trainer in Event Mesh cockpit |
-| **Connection > Reconnect** | `Yes` | If the broker drops the connection, reconnect automatically |
+| **Connection > Credential Name** | `event_mesh_amqp_<your_initials>` (Security Material alias) | Decouples credential rotation from iFlow code |
+| **Connection > Queue Name** | `roi-orderhub-salesorder-created-<your_initials>` | The durable queue the trainer already created in Event Mesh cockpit, bound to the topic |
 | **Processing > Number of Concurrent Processes** | `1` for the lab; `5` for production | More concurrency = more throughput, but harder to reason about ordering |
-| **Processing > Acknowledgement Mode** | `Client Acknowledgement` | ACK only after iFlow run succeeds; failures cause re-delivery |
-| **Processing > Subscription Type** | `Durable` | Survive consumer downtime |
-| **Processing > Subscription Name** | `roi-orderhub-salesorder-v1` | Stable identity — never rename mid-lifetime |
-| **Processing > Maximum Retries** | `5` | Re-deliver up to 5 times before failing the message |
-| **Processing > Backoff (between retries)** | `5000` ms (5 seconds), exponential | Avoid hammering a flaky downstream |
-| **Selectors > Selector** | (empty for the Order Hub) | Filter messages by header equality. Empty = receive everything from the queue |
+| **Processing > Max. Number of Prefetched Messages** | Default | How many messages the adapter fetches ahead of processing them |
+| **Processing > Consume Expired Messages** | Off (default) | Whether to process messages the broker has marked expired |
+| **Processing > Max. Number of Retries** | `5` | Re-deliver up to 5 times before giving up on the message |
+| **Processing > Delivery Status After Max. Retries** | `REJECTED` | What the adapter tells the broker once retries are exhausted. **Never `MODIFIED_FAILED_UNDELIVERABLE`** — SAP's own guidance says it's unsupported and can cause processing errors. |
 
-## Subscription Name — the identity that must never change
+There is no Subscription Name, Subscription Type, or Acknowledgement Mode field. Those don't exist on this adapter.
 
-This is the single sharpest edge of AMQP.
+## The queue name IS the identity
+
+Unlike some AMQP implementations that separate "queue" from "subscription," CPI's AMQP Sender simply consumes from the named queue. There's no separate subscription registration to track, rename, or lose — the queue itself, and its durability, is the whole story.
 
 | Action | Effect |
 |---|---|
-| Deploy with name `roi-orderhub-salesorder-v1` first time | Broker creates durable subscription `roi-orderhub-salesorder-v1` and starts accumulating events |
-| Undeploy iFlow | Subscription remains on the broker; events accumulate |
-| Redeploy with the **same** name | Resume from where you left off — drain the backlog |
-| Redeploy with a **different** name `...-v2` | Broker treats it as a fresh subscription with empty backlog. The events that accumulated under `...-v1` are stuck there until the retention policy purges them |
-| Delete the iFlow | Subscription remains on the broker (you have to delete it in the Event Mesh cockpit separately if you want to free up the name) |
+| Deploy pointing at `roi-orderhub-salesorder-created-<your_initials>` | Adapter starts consuming; any backlog already on the durable queue starts draining |
+| Undeploy the iFlow | Nothing consumes the queue; events keep accumulating (because the queue is durable) |
+| Redeploy pointing at the **same** Queue Name | Resumes draining exactly where it left off |
+| Redeploy pointing at a **different** Queue Name | You're now consuming a different queue entirely — the original queue's backlog is untouched, just nothing is reading it |
+| Delete the queue itself in Event Mesh cockpit | All accumulated events are lost. The trainer's queue has deletion protection; production should too |
 
-The rule: **treat Subscription Name as a stable contract with the broker, not a configurable property of your iFlow.**
+The practical rule: **treat Queue Name as a stable contract with the broker, not something to casually change.** If you genuinely need a breaking change (schema-incompatible payload, for example), stand up a new queue bound to a new topic version, migrate consumers deliberately, and drain the old queue before removing it.
 
-If you genuinely need a new subscription (schema-breaking change for example), follow the v1/v2 migration pattern:
+## Acknowledgement — automatic, not a setting
 
-1. Bring up `roi-orderhub-salesorder-v2` alongside v1 in a parallel iFlow.
-2. Verify v2 processes correctly on test events.
-3. Stop the producer from generating new events to v1 (or accept that v1's tail will be processed by the old iFlow).
-4. Drain v1 to zero depth on the broker.
-5. Undeploy v1's iFlow.
-6. Delete v1 subscription from Event Mesh cockpit.
-
-This is overkill for additive schema changes. Use it only for genuinely incompatible changes.
-
-## Acknowledgement Mode — what each does
-
-Already covered in `amqp_vs_jms_reference.md` but worth repeating here:
-
-| Mode | When ACK is sent | Risk on iFlow failure |
-|---|---|---|
-| Auto-Acknowledgement | Immediately on receipt by the adapter | Event is lost if iFlow crashes mid-processing — **don't use** in production |
-| Client Acknowledgement | When iFlow run reaches successful end | Re-delivery on failure; idempotency is mandatory |
-| Manual | Your script explicitly calls ACK | Rare; you almost never want this complexity |
-
-**Client Acknowledgement** is the right choice for the Order Hub.
+There's no acknowledgement-mode dropdown to choose. What actually happens: the adapter acknowledges a message to the broker when the iFlow run that consumed it completes successfully. If the run fails, no acknowledgement is sent, and the broker redelivers according to Max. Number of Retries. Some AMQP implementations expose this as a manual auto-ack-vs-client-ack choice — on this adapter, it's simply how it works, not a setting you pick.
 
 ## Maximum Retries — what happens at the limit
 
-When the iFlow fails and Client Acknowledgement is set, the broker re-delivers. With Maximum Retries = 5:
+When the iFlow run fails, the broker redelivers, up to `Max. Number of Retries` times:
 
-1. First attempt: iFlow run #1 fails (broker doesn't get ACK).
-2. Broker re-delivers after backoff. Attempt #2 fails.
-3. ... up to attempt #5 fails.
-4. After the 5th failure, the broker stops re-delivering this message. What happens next depends on the **DLQ configuration** in Event Mesh:
-   - If DLQ is configured: message moves to the dead-letter queue.
-   - If no DLQ: message stays in the queue with a "delivery count exceeded" flag. New events behind it can still be delivered, but the poison message lingers.
+1. First attempt: run #1 fails (adapter doesn't acknowledge).
+2. Broker redelivers after backoff. Attempt #2 fails.
+3. ... up to the configured retry count fails.
+4. After that, the adapter reports `Delivery Status = REJECTED` to the broker. What happens next depends on config that lives **entirely on the Event Mesh broker side, not the CPI adapter**:
+   - Event Mesh calls this a **Dead Message Queue**, not "DLQ" — different product, different term for the same idea. It's a **genuinely separate queue object** — you have to explicitly create it yourself; it isn't auto-provisioned, and it isn't just a status label on the original queue.
+   - Two fields directly on the queue's own properties: **Max Redelivery Count** and **Dead Message Queue** (holds the name of the queue that should receive dead messages). Confirmed directly on the real `roi-orderhub-salesorder-created-<your_initials>` queue — both fields sit right on the queue's main property list, no extra "Advanced Settings" navigation needed.
+   - **The Dead Message Queue field alone isn't a safety net.** SAP's own docs are explicit: *"If the DMQ doesn't exist, discarded messages are deleted."* Naming a queue there without actually having created it doesn't leave messages stuck somewhere recoverable — it silently deletes them.
+   - SAP's own recommendation: give every queue that needs one its own dedicated DMQ, named `<queue-name>_dmq`, actually created as a real queue, rather than sharing one DMQ across queues or just naming one without creating it.
 
-For the Order Hub: trainer pre-configures a DLQ `roi-orderhub-salesorder-created.dlq` in Event Mesh. Day 4.4 wires error handling to consume from the DLQ for forensics.
+**Verify before relying on this — don't assume it's wired up.** On the real `roi-orderhub-salesorder-created-<your_initials>` queue, Max Redelivery Count currently shows `0`. Whatever `0` actually means for this field (unlimited redelivery, or immediate dead-lettering on first failure) and whether the Dead Message Queue field is even populated needs confirming directly on the queue before treating dead-lettering as something this lab can rely on out of the box.
 
 ## Recovery scenarios
 
 | Scenario | What happens |
 |---|---|
-| iFlow undeployed for 5 min during a transport | Events accumulate in the queue under the durable subscription. Redeploy resumes drain. No loss. |
-| Dev tenant restarted overnight | Broker connection is dropped, adapter reconnects, durable subscription resumes. No loss. |
-| Event Mesh service restarted | Broker is the same instance after restart. Subscription state persists. No loss. |
-| Event Mesh credentials rotated | Adapter fails authentication. No events processed. Re-deploy with new credentials in Security Material to resume. Events accumulated during the outage drain on resume. No loss but delayed processing. |
-| Queue deleted by ops in cockpit | All accumulated events are lost. The trainer's queue is configured with deletion protection; in production you'd want the same. |
-| Subscription name renamed in iFlow | New subscription with empty backlog; old subscription's events are orphaned on the broker. Loss until retention purge. **Avoid.** |
-| iFlow upgraded to a new version | Same Subscription Name → seamless. The broker doesn't know your iFlow versioned. |
-| Schema-breaking change in the event payload | Each delivery causes the iFlow to fail (parse error). After Max Retries, message goes to DLQ. You fix the iFlow or roll back. The DLQ is your safety net. |
+| iFlow undeployed for 5 min during a transport | Events accumulate on the durable queue. Redeploy resumes draining. No loss. |
+| Dev tenant restarted overnight | Broker connection drops, adapter reconnects, draining resumes. No loss. |
+| Event Mesh service restarted | Same broker instance after restart; queue state persists. No loss. |
+| Event Mesh credentials rotated | Adapter fails authentication until Security Material is updated with new credentials. Events accumulate on the queue in the meantime — no loss, just delayed processing. |
+| Queue deleted by ops in cockpit | All accumulated events are lost. The trainer's queue has deletion protection; production should too. |
+| iFlow upgraded to a new version, same Queue Name | Seamless — the broker has no concept of iFlow versions, only queues. |
+| Schema-breaking change in the event payload | Each delivery causes the iFlow to fail (parse error). After Max Retries, the message goes to DLQ. Fix the iFlow or roll back; the DLQ is your safety net. |
 
 ## Verifying durability is actually on
 
-You'd be amazed how many "I configured Durable" turn out to be Non-Durable on closer inspection. To verify:
-
-**In the iFlow editor:**
-- AMQP Sender adapter → Processing tab → Subscription Type should show `Durable`. Subscription Name should be filled in.
-
-**In Event Mesh cockpit:**
-- Service instance → Queues → click `roi-orderhub-salesorder-created` → Subscribers tab.
-- Each connected consumer shows its Subscription Name. If you see your iFlow listed with the expected name, it's durable. If the subscription disappears as soon as you undeploy the iFlow, it was non-durable.
+You'd be amazed how many "I made it durable" turn out not to be, on closer inspection. To verify: **check the queue itself in the Event Mesh cockpit** — Service instance → Queues → `roi-orderhub-salesorder-created-<your_initials>` → its properties will show whether it's durable. This isn't something the CPI adapter side can tell you, since it isn't configured there.
 
 **Provoking the failure mode (Day 4.3 lab section "Failure cases"):**
 - Undeploy the iFlow.
 - Send a test event.
 - Redeploy.
-- If the event is processed → durable ✓
-- If the event is gone forever → non-durable ✗
+- If the event is processed → the queue is durable ✓
+- If the event is gone forever → it isn't ✗ (check the queue's settings in Event Mesh cockpit)
 
-## Subscription depth — when to alert
+## Queue depth — when to alert
 
 The queue depth (number of events waiting to be processed) is a key metric:
 
@@ -121,15 +94,4 @@ The queue depth (number of events waiting to be processed) is a key metric:
 | Continuously climbing | Consumer is slower than producer — investigate iFlow performance |
 | Stuck at a number > 0 with no consumption | Consumer is offline or its connection is broken |
 
-For the Order Hub: trainer pre-configures a Cloud ALM alert when queue depth > 500 for 5 minutes (Day 4.1 alerting tied to this Day 4.3 mechanism).
-
-## Settings that look similar but are different
-
-| Setting | Where | What |
-|---|---|---|
-| **Subscription Name** | AMQP adapter, Processing tab | Broker-side identity of the subscription |
-| **Container ID** | AMQP connection (auto-generated unless overridden) | Identifies the AMQP client; usually unique per connection, doesn't need to match Subscription Name |
-| **Queue Name** | AMQP adapter, Connection tab > Address Name | The queue the iFlow consumes from |
-| **Topic name** | Event Mesh cockpit, queue's binding | The topic the queue is bound to |
-
-Subscription Name is *not* the queue name. Two iFlows can both consume from `roi-orderhub-salesorder-created` queue with different Subscription Names — each gets independent delivery state. (Whether you should do this is a design question; usually no.)
+For the Order Hub: the trainer pre-configures a Cloud ALM alert when queue depth > 500 for 5 minutes (Day 4.1 alerting tied to this Day 4.3 mechanism).

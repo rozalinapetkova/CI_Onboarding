@@ -17,7 +17,7 @@ Sender (JMS) > Processing tab
 └─ Acknowledge Mode:                Client
 ```
 
-The same fields with the same meaning live on the AMQP Sender for Event Mesh (parameter name is `Maximum Retries` instead of `Maximum Redelivery`).
+These don't map 1:1 onto the AMQP Sender for Event Mesh. The retry count carries over conceptually (there it's `Max. Number of Retries`), but there's no `Acknowledge Mode` field on the AMQP adapter at all — acknowledgement there is automatic, tied to whether the iFlow run completed successfully, not a setting you pick. See `amqp_vs_jms_reference.md` (Day 4.3) for the detail.
 
 ## Field-by-field
 

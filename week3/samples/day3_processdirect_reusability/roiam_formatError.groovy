@@ -43,7 +43,7 @@ def Message processData(Message message) {
 
     String body = JsonOutput.toJson(err);
 
-    def messageLog = messageLogFactory.createMessageLog(message);
+    def messageLog = messageLogFactory.getMessageLog(message);
     if (messageLog != null) {
         messageLog.setStringProperty("errorCategory", category);
         messageLog.setStringProperty("exceptionClass", exClass);

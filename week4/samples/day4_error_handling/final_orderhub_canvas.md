@@ -167,7 +167,7 @@ The Order Hub at the end of Week 4. All four entry paths, the Exception Subproce
 | Forensics archival | DLQ consumer iFlow writes to Data Store / external store | Day 4.4 design |
 | Routing rules content | Partner Directory `ROI_ORDERHUB_ROUTING/default` | Editable without redeploy |
 | OAuth credentials | Security Material `orderhub-<env>-oauth` | Per-tenant alias |
-| AMQP credentials | Security Material `event_mesh_amqp` | Per-tenant alias |
+| AMQP credentials | Security Material `event_mesh_amqp_<your_initials>` | Per-tenant alias |
 | Queue-to-topic bindings | Event Mesh cockpit | Broker-side config |
 | ANS routing rules / dedup window | ANS configuration | Out of iFlow |
 

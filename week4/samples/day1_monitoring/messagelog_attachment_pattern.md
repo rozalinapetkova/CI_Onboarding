@@ -28,7 +28,7 @@ Adding a fifth and sixth is fine if you have a known multi-step transformation. 
 Inline the `messageLog.addAttachmentAsString(name, content, mimeType)` call in each script.
 
 ```groovy
-def messageLog = messageLogFactory.createMessageLog(message);
+def messageLog = messageLogFactory.getMessageLog(message);
 if (messageLog != null) {
     Reader reader = message.getBody(java.io.Reader);
     String body = reader.text;

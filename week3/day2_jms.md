@@ -175,7 +175,7 @@ def Message processData(Message message) {
     message.setProperty("errorCategory", category);
     message.setHeader("X-Error-Category", category);
 
-    def messageLog = messageLogFactory.createMessageLog(message);
+    def messageLog = messageLogFactory.getMessageLog(message);
     if (messageLog != null) {
         messageLog.setStringProperty("errorCategory", category);
     }

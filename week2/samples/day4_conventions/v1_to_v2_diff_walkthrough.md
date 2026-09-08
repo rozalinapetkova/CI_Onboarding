@@ -106,7 +106,7 @@ The v1 version allocates an intermediate `List<String>` of 32 elements, then joi
 
 ```diff
 - System.out.println("Signature: " + sig)
-+ def messageLog = messageLogFactory?.createMessageLog(message);
++ def messageLog = messageLogFactory?.getMessageLog(message);
 + if (messageLog != null) {
 +     messageLog.setStringProperty("signatureAlgo", algo);
 + }

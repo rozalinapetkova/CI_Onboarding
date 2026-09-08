@@ -8,7 +8,7 @@ import java.io.Reader;
 // Runs after the HTTP receiver call to restcountries.
 
 def Message processData(Message message) {
-    def messageLog = messageLogFactory?.createMessageLog(message);
+    def messageLog = messageLogFactory?.getMessageLog(message);
 
     Reader reader = message.getBody(java.io.Reader);
     def upstream = null;

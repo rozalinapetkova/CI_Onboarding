@@ -7,13 +7,11 @@ Use this as the visual reference while building the AMQP entry branch. It maps t
 ```
                 ┌──────────────────────────────────────────────┐
                 │     [Sender: AMQP]                           │
-                │       Address Type:   Queue                  │
-                │       Address Name:   roi-orderhub-          │
-                │                       salesorder-created     │
-                │       Subscription:   Durable                │
-                │       Sub. Name:      roi-orderhub-          │
-                │                       salesorder-v1          │
-                │       Ack Mode:       Client Ack             │
+                │       Queue Name:     roi-orderhub-          │
+                │                       salesorder-created-    │
+                │                       <your_initials>        │
+                │       (durable — set on the queue itself,    │
+                │        in Event Mesh cockpit, not here)      │
                 └────────────────────┬─────────────────────────┘
                                      │
                                      ▼
@@ -139,7 +137,7 @@ Notice the JMS Producer step: `roi.orderhub.queue` is the same queue the HTTP en
 
 | Concern | Where it lives |
 |---|---|
-| AMQP credentials | Security Material alias `event_mesh_amqp` (referenced by adapter) |
+| AMQP credentials | Security Material alias `event_mesh_amqp_<your_initials>` (referenced by adapter) |
 | Queue-to-topic binding | Event Mesh cockpit (not in iFlow XML) |
 | DLQ configuration | Event Mesh cockpit, queue settings |
 | Routing rules content | Partner Directory (referenced by script, not embedded) |
@@ -153,7 +151,7 @@ This off-canvas state is what makes event-driven different from request-reply: a
 Day 4.4 (Error Handling) will add:
 
 - An **Exception Subprocess** that catches script/mapping failures, attaches the full original event to MPL, and (depending on classification) either lets the AMQP adapter retry or routes to a permanent error path.
-- A **DLQ consumer iFlow** that pulls from `roi-orderhub-salesorder-created.dlq` and writes to a forensics Data Store for offline analysis.
+- A **DLQ consumer iFlow** that pulls from `roi-orderhub-salesorder-created-<your_initials>.dlq` and writes to a forensics Data Store for offline analysis.
 - An **alert wiring** for "subscription disconnected > 5 min" tied to Cloud ALM (from Day 4.1).
 
 Build Day 4.3 first as drawn here. Day 4.4 layers error handling on top without restructuring the happy path.

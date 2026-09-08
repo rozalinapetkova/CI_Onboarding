@@ -6,11 +6,11 @@ Keep this open during the Day 4.3 hands-on lab and any time you're debugging the
 
 | Symptom | Cause | Fix |
 |---|---|---|
-| iFlow deployed but no events ever arrive | AMQP credentials wrong; adapter can't authenticate | Check Security Material alias `event_mesh_amqp`; test connection in adapter config |
+| iFlow deployed but no events ever arrive | AMQP credentials wrong; adapter can't authenticate | Check Security Material alias `event_mesh_amqp_<your_initials>`; test connection in adapter config |
 | Events arrive on partner team's iFlow but not on yours | Queue binding to topic missing in Event Mesh cockpit | Open Event Mesh cockpit → Queues → your queue → Subscriptions → verify topic binding |
 | Events stop arriving after running for hours | Broker connection dropped, adapter not reconnecting | Verify `Reconnect: Yes` on adapter; check tenant network event logs |
 | Adapter logs "AMQP link detached" repeatedly | Credential rotated on Event Mesh side but old creds still in Security Material | Update Security Material with new client id/secret |
-| First event after re-deployment of iFlow doesn't arrive | Subscription Name was changed inadvertently | Compare current adapter config's Subscription Name to git history; revert if changed |
+| First event after re-deployment of iFlow doesn't arrive | Queue Name in the adapter config was changed inadvertently | Compare current adapter config's Queue Name to git history; revert if changed |
 | Queue depth climbing on broker, MPL on iFlow shows nothing recent | AMQP adapter in started state but not consuming (rare adapter bug; restart needed) | Undeploy / redeploy the iFlow |
 
 ## Poison message / DLQ failures
@@ -60,12 +60,14 @@ Keep this open during the Day 4.3 hands-on lab and any time you're debugging the
 | PD change "not taking effect" | Caching at the PD service tier (rare) or trainee looking at the wrong iFlow run | Wait 30 seconds; check that the iFlow run you're inspecting started AFTER the PD change; confirm via MPL property `targetSystem` |
 | Routing decision logged in MPL doesn't match PD parameter content | Script is reading the wrong partner id (typo) | Compare script's `pid` variable to PD cockpit display name |
 
-## Acknowledgement / re-delivery failures
+## Redelivery failures
+
+There's no acknowledgement-mode setting on this adapter to misconfigure — acknowledgement happens automatically when a run completes successfully. So symptoms here point at something else:
 
 | Symptom | Cause | Fix |
 |---|---|---|
-| MPL shows Completed but the same `ce-id` is delivered again 5 minutes later | Auto-Acknowledgement mode (you got the ACK fast but iFlow result wasn't tied to it) OR the iFlow completed without sending ACK | Verify Acknowledgement Mode is `Client Acknowledgement` |
-| All events fail silently with no MPL entry at all | Auto-Ack + an early-stage crash (rare combination, but possible) | Always Client Ack |
+| MPL shows Completed but the same `ce-id` is delivered again later | The run's "Completed" status doesn't reflect genuine downstream success — e.g. an exception was swallowed before reaching the End event | Audit the flow for a catch block that suppresses an exception instead of letting it fail the run |
+| All events fail silently with no MPL entry at all | A crash before the adapter even starts an MPL run — rare, usually an adapter or tenant-level issue | Check tenant status; escalate to trainer/BTP admin if it persists |
 | iFlow finishes successfully but message stays in queue | Adapter version bug or misconfiguration | Restart iFlow; if persists, raise SAP support ticket; verify adapter version |
 
 ## CloudEvents header failures
