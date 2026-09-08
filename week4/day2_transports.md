@@ -113,6 +113,7 @@ What we **do not** automate:
 This is opinionated. Be ready to defend it on Day 4.5.
 
 ## 6. The transport workflow — how Dev → QA actually goes
+   > **Note:** this exact path doesn't exist on our tenant. Not doing it this way for now — needs to be discussed with Todor before this section gets corrected.
 
 End-to-end, the path is:
 
@@ -254,6 +255,7 @@ Tenant-config side effects are not rolled back automatically. If a transport set
    If any are still hardcoded, externalize them now. Bump the iFlow version (e.g., `1.0.4` → `1.1.0`) since externalization is a behavior change for callers' tenant config.
 2. **Write the changelog entry first.** Create `changelog/roi_ResilientOrderHub/<YYYY-MM-DD>_dev_to_qa_transport.txt`. Use the example in section 8 as a template. Yes, write it before you transport — if you can't articulate what's changing, you shouldn't transport.
 3. **Export to CTM.** *Design → Integration Packages → roi-orderhub → Actions → Transport*. Pick "Cloud Transport Management". Confirm the transport request is created. Capture the `TRR-XXXX` ID and write it into the changelog file.
+   > **Note:** this exact path doesn't exist on our tenant. Not doing it this way for now — needs to be discussed with Todor before this section gets corrected.
 4. **Approve in the CTM cockpit.** Open *BTP Cockpit → Cloud Transport Management*. Find the transport request. Verify it's queued at `ci-qa-target`. Click *Import*.
 5. **Verify on the QA tenant.** Open the QA tenant's *Design → Integration Packages*. Confirm the `roi-orderhub` package appeared. Open it — status will be **Configure**.
 6. **Configure for QA.** Trainer pre-set tenant-specific values:
