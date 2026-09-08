@@ -20,7 +20,7 @@ When level is **None**, `messageLogFactory.getMessageLog(message)` returns `null
 def messageLog = messageLogFactory.getMessageLog(message);
 if (messageLog != null) {
     messageLog.addAttachmentAsString("incoming-payload", payloadString, "application/json");
-    messageLog.setStringProperty("orderId", orderId);
+    messageLog.addCustomHeaderProperty("orderId", orderId);
 }
 ```
 

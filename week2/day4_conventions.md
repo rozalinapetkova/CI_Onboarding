@@ -141,13 +141,13 @@ Move the structure inside `processData` (use a `Map`, or `tap` an inner class), 
 def messageLog = messageLogFactory.getMessageLog(message);
 if (messageLog != null) {
     messageLog.addAttachmentAsString("incomingPayload", payloadString, "application/json");
-    messageLog.setStringProperty("orderId", orderId);
+    messageLog.addCustomHeaderProperty("orderId", orderId);
 }
 ```
 
 The **null guard is mandatory** — `messageLog` is `null` when log level is "None" (a configuration the operator can set), and dereferencing it in that case throws an NPE that takes the message into the error path for no reason.
 
-`addAttachmentAsString(name, content, mimeType)` makes the attachment visible in *Monitor → Message Processing → click message → Attachments*. `setStringProperty(name, value)` adds a searchable property at the message level.
+`addAttachmentAsString(name, content, mimeType)` makes the attachment visible in *Monitor → Message Processing → click message → Attachments*. `addCustomHeaderProperty(name, value)` adds a searchable property at the message level. `setStringProperty(name, value)` looks similar but isn't a substitute — it only shows up in that one script step's own Properties subsection (Debug/Trace level only), never in Search.
 
 **Do not log secrets** (tokens, passwords, full SSN). You're writing to a tenant-shared log store that operations and other developers read.
 

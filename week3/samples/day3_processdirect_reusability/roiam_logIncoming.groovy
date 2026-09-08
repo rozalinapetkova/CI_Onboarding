@@ -29,10 +29,10 @@ def Message processData(Message message) {
     def messageLog = messageLogFactory.getMessageLog(message);
     if (messageLog != null) {
         if (correlationId != null) {
-            messageLog.setStringProperty("correlationId", correlationId);
+            messageLog.addCustomHeaderProperty("correlationId", correlationId);
         }
         if (orderId != null) {
-            messageLog.setStringProperty("orderId", orderId);
+            messageLog.addCustomHeaderProperty("orderId", orderId);
         }
         if (orderFormat != null) {
             messageLog.setStringProperty("orderFormat", orderFormat);

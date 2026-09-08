@@ -79,7 +79,7 @@ The **only** logging mechanism that produces visible output in the runtime is `M
 ```groovy
 def messageLog = messageLogFactory.getMessageLog(message);
 if (messageLog != null) {                                    // null when log level too low
-    messageLog.setStringProperty("orderId", "C-1001");        // searchable in MPL custom search
+    messageLog.addCustomHeaderProperty("orderId", "C-1001");  // searchable in MPL custom search
     messageLog.addAttachmentAsString("input.json",
         bodyString, "application/json");
 }
@@ -91,7 +91,9 @@ if (messageLog != null) {                                    // null when log le
 
 `addAttachmentAsString` becomes a tab in the MPL — visible in *Monitor → Message Processing → Attachments*. Use it for diagnostic snapshots: input, output, intermediate transformation, error context.
 
-`setStringProperty(name, value)` makes the value **searchable in the MPL custom-search box** — this is how you find a message by `orderId` later. Pair with the MPL custom-header search you saw in Week 1.
+`addCustomHeaderProperty(name, value)` makes the value **searchable in the MPL custom-search box** — this is how you find a message by `orderId` later. Pair with the MPL custom-header search you saw in Week 1.
+
+There's also `setStringProperty(name, value)`, which looks similar but does something different: it only shows up in that one script step's own Properties subsection (Debug or Trace level only), never in Search. Use it for step-local diagnostic values, not for anything operations needs to find a message by.
 
 **Don't use:**
 - `System.out.println` — output goes to `/dev/null`.
@@ -345,7 +347,7 @@ Sender → Content Modifier → Router on X-Order-Format
 
        def messageLog = messageLogFactory.getMessageLog(message);
        if (messageLog != null) {
-           messageLog.setStringProperty("orderId", orderId ?: "");
+           messageLog.addCustomHeaderProperty("orderId", orderId ?: "");
            messageLog.addAttachmentAsString("canonical-from-json.xml",
                sw.toString(), "application/xml");
        }
@@ -432,7 +434,7 @@ Sender → Content Modifier → Router on X-Order-Format
 
        def messageLog = messageLogFactory.getMessageLog(message);
        if (messageLog != null) {
-           messageLog.setStringProperty("orderId", orderId);
+           messageLog.addCustomHeaderProperty("orderId", orderId);
            messageLog.addAttachmentAsString("canonical-from-csv.xml",
                sw.toString(), "application/xml");
        }
@@ -479,7 +481,8 @@ Sender → Content Modifier → Router on X-Order-Format
 - v2 import: `com.sap.it.script.v2.api.Message`. Every script.
 - Always `message.getBody(java.io.Reader)`, parse the stream with `JsonSlurper.parse(reader)` / `XmlSlurper().parse(reader)`.
 - `messageLogFactory.getMessageLog(message)` — **guard for null** (returns null when log level is None).
-- `MessageLog.setStringProperty(name, value)` makes the value searchable in MPL custom-search.
+- `MessageLog.addCustomHeaderProperty(name, value)` makes the value searchable in MPL custom-search. `setStringProperty(name, value)` is not the same thing — step-local, Debug/Trace only, never searchable.
+
 - **No `Thread.sleep`** — use Groovy's `sleep(ms) { }`. **No top-level classes** — use methods inside the script.
 - v2 scripts placed under `script/v2/`, named `roiam_*`. Upload via the Script step dialog, **not** the Resources tab.
 - Streaming Reader + parse-once is the default for any payload over a few KB.

@@ -47,7 +47,7 @@ def Message processData(Message message) {
     def messageLog = messageLogFactory.getMessageLog(message);
     if (messageLog != null) {
         messageLog.setStringProperty("orderSequence", orderSequence ?: "n/a");
-        messageLog.setStringProperty("orderId", orderId ?: "n/a");
+        messageLog.addCustomHeaderProperty("orderId", orderId ?: "n/a");
         messageLog.addAttachmentAsString("response-envelope",
             JsonOutput.prettyPrint(envelopeJson), "application/json");
     }

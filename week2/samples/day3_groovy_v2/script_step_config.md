@@ -41,4 +41,4 @@ After deploy:
 2. Open Monitor → Message Processing → click the run.
 3. Confirm the **Steps tree** shows your script step name.
 4. Click **Attachments** — `canonical-from-json.xml` (or `-csv.xml`) should be there.
-5. In the message **Properties** panel, confirm `orderId` is set (from `setStringProperty`) — this makes the run findable via MPL custom search later.
+5. In Monitor's custom-header search, confirm `orderId` is filterable (registered via `addCustomHeaderProperty`) — this makes the run findable via MPL custom search later.

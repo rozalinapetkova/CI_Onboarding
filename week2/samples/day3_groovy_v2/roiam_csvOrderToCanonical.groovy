@@ -76,7 +76,7 @@ def Message processData(Message message) {
 
     def messageLog = messageLogFactory?.getMessageLog(message);
     if (messageLog != null) {
-        messageLog.setStringProperty("orderId", orderId);
+        messageLog.addCustomHeaderProperty("orderId", orderId);
         messageLog.addAttachmentAsString("canonical-from-csv.xml",
             sw.toString(), "application/xml");
     }

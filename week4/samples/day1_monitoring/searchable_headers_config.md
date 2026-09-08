@@ -2,45 +2,37 @@
 
 Operations searches the Monitor by **MPL properties**, not by message headers. A header set via `message.setHeader(...)` is visible in the *Run Steps → Headers* tab but **not** in the Monitor's top-level Search box. To make a value searchable, you must register it as an MPL custom property.
 
-## Two ways to register
+## Registering a searchable property
 
-### A — Content Modifier "MPL custom header property" checkbox
-
-For values that already live as message headers (most common case):
-
-1. Add a Content Modifier step.
-2. Open the *Message Header* tab.
-3. Add or reference an existing header. Source can be Header, Property, Constant, XPath, etc.
-4. Tick **MPL custom header property**.
-5. Save and deploy.
-
-After deploy, the header appears in *Monitor → Message Processing → Advanced Filter → Custom Header Properties*.
-
-### B — `messageLog.setStringProperty(...)` from a Groovy script
-
-For values computed inside a script:
+Call `messageLog.addCustomHeaderProperty("<header name>", value)` from a Groovy script:
 
 ```groovy
 def messageLog = messageLogFactory.getMessageLog(message);
 if (messageLog != null) {
-    messageLog.setStringProperty("orderId", orderId);
-    messageLog.setStringProperty("correlationId", correlationId);
-    messageLog.setStringProperty("customerId", customerId);
+    messageLog.addCustomHeaderProperty("orderId", orderId);
+    messageLog.addCustomHeaderProperty("correlationId", correlationId);
+    messageLog.addCustomHeaderProperty("customerId", customerId);
 }
 ```
 
 The null-guard is mandatory — see `log_levels_reference.md`.
 
-## When to use which
+Do this in whichever script step already has the value on hand — the step that parsed `orderId` out of the payload, the step that generated/accepted `correlationId`, etc. No separate registration step is needed if the value-producing script just calls `addCustomHeaderProperty` itself.
 
-| Source of the value | Use |
+## Not the same thing: `messageLog.setStringProperty(...)`
+
+`setStringProperty` looks similar but does something different: it writes to that one script step's own *Properties* subsection in Monitor's detailed log view (Debug or Trace level only), not to a message-wide, searchable field. It is **not** an alternative way to make something searchable — only `addCustomHeaderProperty` does that. Use `setStringProperty` for step-local diagnostic values you want visible while actively debugging that step, never for anything operations needs to search by.
+
+## When to register
+
+| Source of the value | How to register |
 |---|---|
-| Inbound HTTP header (e.g. `correlationId`) | Content Modifier checkbox |
-| Extracted from payload (e.g. `orderId` parsed from JSON) | Groovy script |
-| Constant set per environment | Content Modifier with Constant source |
-| Derived in code (e.g., business reference computed from multiple fields) | Groovy script |
+| Inbound HTTP header (e.g. `correlationId`) | `addCustomHeaderProperty` in the script step that already reads/sets that header |
+| Extracted from payload (e.g. `orderId` parsed from JSON) | `addCustomHeaderProperty` right after extraction, in the parsing script |
+| Constant set per environment | `addCustomHeaderProperty` in any script step, value sourced from a parameter |
+| Derived in code (e.g., business reference computed from multiple fields) | `addCustomHeaderProperty` right where it's computed |
 
-Don't double-register. If the script already sets `orderId` as an MPL property, don't also tick the checkbox on a downstream Content Modifier referencing the same header — the value overwrites itself with no harm but adds confusion to the iFlow diagram.
+Don't double-register. If one script already sets `orderId` as an MPL property via `addCustomHeaderProperty`, don't call it again for the same header in a later script — harmless, but adds noise to the iFlow diagram.
 
 ## Headers the Order Hub registers
 
@@ -68,14 +60,14 @@ If the dropdown is missing a header you registered:
 
 - Log Level might be **Error** — the property is only stored on Failed runs.
   Bump to Info, send a new run, recheck.
-- The checkbox wasn't actually saved. Re-open the Content Modifier; confirm.
+- The `addCustomHeaderProperty` call didn't actually run on this code path — check whether the value was null/empty and the call got skipped.
 - The script ran but `messageLog` was null. Add a property to verify presence; check log level.
 
 ## Anti-patterns
 
 | Anti-pattern | Consequence |
 |---|---|
-| Setting a header but not ticking the checkbox | Header visible in Run Steps but not searchable |
+| Setting a header but never calling `addCustomHeaderProperty` for it | Header visible in Run Steps but not searchable |
 | Registering 50+ properties "just in case" | Cockpit slows down; hits per-MPL limit; operations confused |
 | Setting properties with PII or secrets | Tenant-wide log store sees them; multi-developer leak |
 | Setting `orderId` differently in Producer vs Consumer iFlows | Operations can't find both halves of the trace under one search |

@@ -22,7 +22,7 @@ def Message processData(Message message) {
 
     def messageLog = messageLogFactory.getMessageLog(message);
     if (messageLog != null) {
-        messageLog.setStringProperty("correlationId", correlationId);
+        messageLog.addCustomHeaderProperty("correlationId", correlationId);
     }
 
     return message;

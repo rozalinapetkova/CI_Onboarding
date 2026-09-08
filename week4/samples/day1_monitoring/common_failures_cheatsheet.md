@@ -15,11 +15,11 @@
 
 | Symptom | Likely cause | Fix |
 |---|---|---|
-| Header `orderId` visible in Run Steps but not in Search dropdown | Forgot to tick "MPL custom header property" on the Content Modifier | Open Content Modifier → Message Header → check the box, redeploy |
-| Property registered via `setStringProperty` not searchable | Log Level = Error; properties only retained on Failed runs at that level | Bump to Info |
+| Header `orderId` visible in Run Steps but not in Search dropdown | Forgot to call `messageLog.addCustomHeaderProperty("orderId", orderId)` in script | Add the call (with the null-guard) in the script step that has `orderId` on hand, redeploy |
+| Property registered via `setStringProperty` not searchable | `setStringProperty` is never searchable, regardless of Log Level — it only shows in that step's own Properties subsection (Debug/Trace) | Switch to `messageLog.addCustomHeaderProperty("<header name>", value)` if the goal is Monitor-wide search |
 | `correlationId` searchable on Producer but not Consumer | ProcessDirect not configured to allow `correlationId` header through | Add `correlationId` to ProcessDirect Allowed Headers list |
 | Header has different value on Consumer than Producer | Header rewritten by Content Modifier in between | Audit; remove the spurious overwrite |
-| `setStringProperty` doesn't appear at all | Property name has special chars (spaces, `:`, `/`) | Use camelCase, no special chars |
+| `setStringProperty` value doesn't show up in that step's Properties subsection | Property name has special chars (spaces, `:`, `/`) | Use camelCase, no special chars |
 | Property name registered but old runs don't show it | MPL properties are per-run; only new runs after registration carry the property | Expected — old runs stay as they were |
 
 ## Correlation ID failures
