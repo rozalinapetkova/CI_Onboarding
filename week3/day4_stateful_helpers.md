@@ -54,7 +54,7 @@ The classic idempotency guard:
 ```
 Sender ─► Get from Data Store (key = ${header.X-Idempotency-Key},
                                 Throw Exception on Failure = NO)
-        ─► Router on ${property.DataStore_FoundEntry}
+        ─► Router on ${header.SAP_DatastoreEntryFound}
                 ├─ true  ─► set body = stored response ─► End (return cached)
                 └─ false ─► (process normally) ─► Write to Data Store
                             ─► (continue to ProcessDirect, JMS, etc.)
@@ -256,9 +256,9 @@ Notice the **Write to Data Store happens AFTER ProcessDirect succeeds** — you 
    - **Data Store Name**: `ds_<your_initials>_OrderIdempotency` (will be created on first deploy).
    - **Entry ID**: `${header.X-Idempotency-Key}`.
    - **Throw Exception on Failure**: **uncheck** — we want to handle "not found" with a router, not a throw.
-   - Configure the step to set a property on success — e.g. *Output Body* = `As Body`, and the runtime sets a property indicating found/not-found. (Some versions: check the "Set Status Code in Header" box.) The exact property name depends on your tenant version — confirm with trainer; for the lab, assume property `ds_found` is set to `true` / `false`.
+   - On success, the runtime automatically sets a **header** — `SAP_DatastoreEntryFound` — to `true` or `false`. It's a header, not a property, and the name is fixed (not tenant-dependent).
    - Add a *Router* after the Get step:
-     - Branch 1: `${property.ds_found} = 'true'` → set HTTP response code 202 → End. (Returning the cached body that the Get step put in `message.body`.)
+     - Branch 1: `${header.SAP_DatastoreEntryFound} = 'true'` → set HTTP response code 202 → End. (Returning the cached body that the Get step put in `message.body`.)
      - Branch 2: default → continue to Number Range + ProcessDirect + JMS path.
 
 4. **Reject calls without an idempotency key (or generate one).**

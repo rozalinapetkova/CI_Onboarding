@@ -5,9 +5,9 @@
 | Symptom | Likely cause | Fix |
 |---|---|---|
 | Every call is "fresh" — Number Range advances each retry, JMS enqueues twice for the same idempotency key | Data Store Get step uses `${exchangeId}` as the key (or some other per-run unique value) | Change Entry ID to `${header.X-Idempotency-Key}` |
-| First call returns the iFlow's error JSON instead of running the order | "Throw Exception on Failure" is checked on the Get step — cache miss is firing the Exception Subprocess | Uncheck it. Branch on the found-property via Router instead |
+| First call returns the iFlow's error JSON instead of running the order | "Throw Exception on Failure" is checked on the Get step — cache miss is firing the Exception Subprocess | Uncheck it. Branch on the `SAP_DatastoreEntryFound` header via Router instead |
 | Cache hit returns an empty body | Get step's "Output Body" is set to *As Property*, not *As Body*; Router's true-branch never sets the body back | Output Body = *As Body*; or restore from the property in the true-branch's Content Modifier |
-| `${property.ds_found}` is always null in the Router | Tenant version uses a different property name (e.g. `DataStore.found`); your Router condition checks the wrong name | Run a test, inspect *Run Steps → Properties* tab on the Get step, use the actual name |
+| `${property.SAP_DatastoreEntryFound}` is always null in the Router | It's a **header**, not a property — the Router condition is checking the wrong scope, not the wrong name | Use `${header.SAP_DatastoreEntryFound}` |
 | Data Store entries pile up forever | Write step's Expiration Period is 0 or blank | Set TTL (604800 = 7 days for idempotency) |
 | Cache returns success but the order never made it downstream | Write step is *before* ProcessDirect/JMS; an error after Write left a cached success that wasn't earned | Move Write to after the success path |
 | Two concurrent calls with the same key both proceed to ProcessDirect | Per-entry locking helps but doesn't fully prevent the check-then-write race at high concurrency | At lab volume, acceptable. At production volume, push idempotency to the downstream API |

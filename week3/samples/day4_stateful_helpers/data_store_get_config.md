@@ -12,18 +12,18 @@ The *Get* step looks up a Data Store entry by key. On the Order Hub it's the ide
 | **Throw Exception on Failure** | **No** | Critical. Default is Yes; that turns a normal cache-miss into an exception that fires the Exception Subprocess. Uncheck so the Router can branch on found/not-found |
 | **Get Options → Delete on Completion** | No | Don't delete — we want repeated calls with the same key to keep hitting the cache for the full TTL |
 | **Output Body** | *As Body* | Replaces the incoming body with the stored payload. The Router then either returns this body as the response, or discards it and continues |
-| **Status (property)** | `ds_found` (depends on tenant version; some versions write `DataStore.found` or set body to null) | Confirm in *Monitor → Run Steps* on a test run. The Router branch condition must match what the runtime actually sets |
+| **Status (header)** | `SAP_DatastoreEntryFound` | Set automatically by the runtime — `true` or `false`. It's a **header**, not a property, and the name is fixed, not tenant-dependent |
 
 ## What gets written into the message
 
 On **found**:
 - Body = the stored payload (the JSON response envelope).
-- Property `ds_found` = `true` (or equivalent; see version note above).
+- Header `SAP_DatastoreEntryFound` = `true`.
 - Original body is **lost** — if you need the inbound payload later, snapshot it to a property first.
 
 On **not found** (with Throw Exception on Failure = No):
 - Body = unchanged from inbound.
-- Property `ds_found` = `false`.
+- Header `SAP_DatastoreEntryFound` = `false`.
 
 ## Where it sits in the canvas
 
@@ -31,7 +31,7 @@ On **not found** (with Throw Exception on Failure = No):
 HTTPS Sender ─► Content Modifier (set correlationId, orderId, X-Idempotency-Key check)
             ─► Script: roiam_logIncoming    (from sc_<initials>_OrderHubHelpers)
             ─► Data Store: Get               ← THIS STEP
-            ─► Router on ${property.ds_found}
+            ─► Router on ${header.SAP_DatastoreEntryFound}
                 ├─ 'true'  ─► End (return cached body, response 202)
                 └─ default ─► Number Range → ProcessDirect → ... → Data Store Write
 ```

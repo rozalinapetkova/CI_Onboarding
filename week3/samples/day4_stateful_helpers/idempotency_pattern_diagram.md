@@ -40,7 +40,7 @@ Data Store Get
     Output Body: As Body
     │
     ▼
-Router  «branch on ${property.ds_found}»  (tenant-specific name; verify in MPL)
+Router  «branch on ${header.SAP_DatastoreEntryFound}»
     │
     ├─ 'true' ──► Content Modifier (Camel response code = 202)
     │             └─► End  (body already contains cached envelope)
@@ -123,7 +123,7 @@ Each placement has a reason — moving any step breaks something:
 **Happy path (first call):**
 ```
 HTTPS Sender → Content Modifier → roiam_requireIdempotencyKey → Router (default) →
-roiam_logIncoming → Data Store Get (miss; ds_found=false) → Router (default) →
+roiam_logIncoming → Data Store Get (miss; SAP_DatastoreEntryFound=false) → Router (default) →
 Number Range (ORD-0001) → ProcessDirect (translator run links via correlationId) →
 roiam_buildResponseEnvelope → Data Store Write → Content Modifier →
 JMS Receiver → Content Modifier → End
@@ -132,7 +132,7 @@ JMS Receiver → Content Modifier → End
 **Cache hit (replay):**
 ```
 HTTPS Sender → Content Modifier → roiam_requireIdempotencyKey → Router (default) →
-roiam_logIncoming → Data Store Get (hit; body=cached envelope; ds_found=true) →
+roiam_logIncoming → Data Store Get (hit; body=cached envelope; SAP_DatastoreEntryFound=true) →
 Router (true branch) → Content Modifier → End
 ```
 
@@ -143,7 +143,7 @@ The cache-hit path is dramatically shorter — that's the whole point. Caller-ob
 | What | Where in MPL |
 |---|---|
 | Idempotency key check | Run Steps → `roiam_requireIdempotencyKey` step → Properties tab → `rejectAtSender` |
-| Cache hit vs miss | Run Steps → Data Store Get → Properties tab → tenant's found/notfound property |
+| Cache hit vs miss | Run Steps → Data Store Get → Headers tab → `SAP_DatastoreEntryFound` |
 | Sequence number issued | Run Steps → Number Range → Headers tab → `X-Order-Sequence` |
 | Translator round-trip | Run Steps → ProcessDirect → click through to translator run (linked by correlationId) |
 | Response envelope built | Run Steps → `roiam_buildResponseEnvelope` → Attachments → `response-envelope` |
