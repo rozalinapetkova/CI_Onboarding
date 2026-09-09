@@ -190,20 +190,27 @@ Both `roi_<your_initials>_OrderHub` and `roi_<your_initials>_OrderHubConsumer` r
 ### Setup
 
 - Yesterday's `roi_<your_initials>_OrderHub` producer + `roi_<your_initials>_OrderHubConsumer` deployed and working with JMS.
-- Week 2's `roi_<your_initials>_OrderTranslator` deployed in your *Training* package.
+- The canonical-transformation logic built across Week 2 Days 2.1–2.3 (Router on `X-Order-Format`, the Message Mapping branch, both Groovy branches, the XSLT enrichment) still lives **inline inside `roi_<your_initials>_OrderHub`** — today's first step pulls it out into its own iFlow.
 - Permission to create Script Collection artifacts (granted by `PI_Integration_Developer`).
 
 ### Steps
 
-1. **Add a ProcessDirect sender to `roi_<your_initials>_OrderTranslator`.**
+1. **Extract the translator logic into its own iFlow.** Everything from Week 2 Days 2.1–2.3 currently sits between the input Content Modifier and the End of `OrderHub`. Pull it out:
+   - **Create a new iFlow**: Design → Training package → New Integration Flow → `roi_<your_initials>_OrderTranslator`.
+   - **Add an HTTPS Sender** to it — e.g. `/http/ordertranslator/translate/<your_initials>`, MEP Request-Reply. This gives you something to test standalone before ProcessDirect is wired up in step 3.
+   - **Move each of these steps** from `OrderHub`'s canvas onto `OrderTranslator`'s canvas, right after the Sender, in the same order: the **Router** (branches on `X-Order-Format`: `xml` / `json` / `csv` / default-error), the **Message Mapping** step (references `mm_<your_initials>_VendorOrderToCanonical` — it's a shared artifact, just reference it from the new iFlow too, no changes needed to the mapping itself), the two **Script** steps (`roiam_jsonOrderToCanonical.groovy`, `roiam_csvOrderToCanonical.groovy` — re-upload via the Script step dialog on the new iFlow, then click *Upgrade*, same rule as always), and the **XSLT enrichment** step (references `xslt_<your_initials>_EnrichCanonicalOrder.xsl`, same artifact, no changes).
+   - **Remove those same steps from `OrderHub`.** Router, Message Mapping, both Script steps, XSLT enrichment — all gone from `OrderHub`'s canvas. It doesn't do any of this anymore; from here on it calls `OrderTranslator` for it instead.
+   - **Save → version → deploy `OrderTranslator`**, then re-run the three `curl` calls from Week 2 Days 2.1 and 2.3 against *its own* endpoint, to confirm the extraction didn't break anything before you touch `OrderHub`.
+
+2. **Add a ProcessDirect sender to `roi_<your_initials>_OrderTranslator`.**
    - Open `roi_<your_initials>_OrderTranslator`.
-   - Add a *ProcessDirect sender* adapter alongside or replacing the existing HTTPS sender (keep both during the lab to avoid breaking the Week 2 caller; in production you'd pick one).
+   - Add a *ProcessDirect sender* adapter alongside the HTTPS sender from step 1 (keep both so you can still test the translator standalone via curl; in production you'd pick one).
    - **Address**: `/orderTranslator/v1/translate/<your-initials>`
    - **MEP** (or "Pattern"): `Request-Reply`
    - **Allowed Headers**: `correlationId,orderId,X-Order-Format,X-Idempotency-Key,X-Order-Sequence`
    - Save → version → deploy.
 
-2. **Refactor `roi_<your_initials>_OrderHub` to call the translator over ProcessDirect.**
+3. **Refactor `roi_<your_initials>_OrderHub` to call the translator over ProcessDirect.**
    - Open `roi_<your_initials>_OrderHub`.
    - Insert a *Request-Reply* step + *ProcessDirect receiver* adapter between the input Content Modifier and the JMS receiver.
    - **Address**: `/orderTranslator/v1/translate/<your-initials>`
