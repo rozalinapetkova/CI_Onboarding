@@ -66,7 +66,8 @@ src/main/resources/script/v2/    ← always v2, never plain script/
 
 ## Upload
 
-- **Script step dialog** — Create or Upgrade from inside the step's properties panel.
+- **Script step dialog** — Create (new) or Upload from file (replace), from inside the step's properties panel.
+- **Then click Upgrade (top-right).** Required every time for a script inside an iFlow's own step, even if the file is already correct v2 content — the click is what actually binds it to v2, not the content. Doesn't apply to Script Collection scripts.
 - **Not** via the Resources tab — that produces stale metadata.
 
 ## MessageLog

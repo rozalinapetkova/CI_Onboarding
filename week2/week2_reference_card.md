@@ -227,7 +227,7 @@ The top-level class rule surprises every cohort. Compiles in IDE, **fails at dep
 - File name `roiam_camelCaseName.groovy`.
 - Standalone scripts in `scripts/standalone/`; iFlow scripts in `scripts/collections/<project>/`.
 - Inside iFlow project: under `src/main/resources/script/v2/`, **not** `script/`.
-- Upload via the **Script step dialog**, not the Resources tab. Use *Upgrade* to replace.
+- Upload via the **Script step dialog**, not the Resources tab. Then click **Upgrade** (top-right) — required every time for a script living directly in an iFlow step, even if the file is already proper v2 content; without it, the step doesn't actually run as v2. Doesn't apply to Script Collection scripts.
 - Changelog at repo root: `changelog/<iFlow>/<YYYY-MM-DD>_<note>.txt`.
 - **Don't zip the iFlow** until explicitly asked.
 - **No secrets in MessageLog** — tenant-shared log store.

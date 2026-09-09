@@ -209,7 +209,7 @@ This is the lab's centerpiece. Knowing how to *cause* each status makes you trus
 
 ### Steps
 
-1. **Add `roiam_setCorrelationId.groovy`** as the first script step after the inbound HTTP sender. Place it under `script/v2/` inside the iFlow project. Upload via the *Script step dialog* — never the Resources tab (Week 2 Day 2.4 rule).
+1. **Add `roiam_setCorrelationId.groovy`** as the first script step after the inbound HTTP sender. Place it under `script/v2/` inside the iFlow project. Upload via the *Script step dialog* — never the Resources tab — then click *Upgrade* (top-right) to actually bind it as v2 (Week 2 Day 2.4 rule).
 2. **Register the searchable headers.** In the script step that already has each value on hand, register `orderId`, `correlationId`, and `customerId`:
    ```groovy
    def messageLog = messageLogFactory.getMessageLog(message);

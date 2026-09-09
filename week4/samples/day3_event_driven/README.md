@@ -23,5 +23,5 @@ Companion artifacts for `week4/day3_event_driven.md`. Each file maps to a sectio
 
 1. Read the module first.
 2. Use `event_subscription_flow_diagram.md` as the canvas reference while building.
-3. Upload the two Groovy scripts via the Script step dialog (not Resources tab).
+3. Upload the two Groovy scripts via the Script step dialog (not Resources tab), then click *Upgrade* (top-right) on each.
 4. Keep `event_failure_modes_cheatsheet.md` open while testing.

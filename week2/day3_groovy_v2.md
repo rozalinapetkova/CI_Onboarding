@@ -483,5 +483,5 @@ Sender → Content Modifier → Router on X-Order-Format
 - `messageLogFactory.getMessageLog(message)` — **guard for null** (returns null when log level is None).
 - `MessageLog.addCustomHeaderProperty(name, value)` makes the value searchable in MPL custom-search. `setStringProperty(name, value)` is not the same thing — step-local, Debug/Trace only, never searchable.
 - **No `Thread.sleep`** — use Groovy's `sleep(ms) { }`. **No top-level classes** — use methods inside the script.
-- v2 scripts placed under `script/v2/`, named `roiam_*`. Upload via the Script step dialog, **not** the Resources tab.
+- v2 scripts placed under `script/v2/`, named `roiam_*`. Upload via the Script step dialog, **not** the Resources tab — then click **Upgrade** (top-right) to actually bind it as v2 (Day 2.4).
 - Streaming Reader + parse-once is the default for any payload over a few KB.

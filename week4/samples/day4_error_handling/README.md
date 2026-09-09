@@ -24,6 +24,6 @@ Companion artifacts for `week4/day4_error_handling.md`. Each file maps to a sect
 
 1. Read the module first.
 2. Use `final_orderhub_canvas.md` as the canvas reference while building.
-3. Upload the three Groovy scripts via the Script step dialog.
+3. Upload the three Groovy scripts via the Script step dialog, then click *Upgrade* (top-right) on each.
 4. Keep `error_lab_failure_cases.md` open during the lab provocation exercises.
 5. Use `dlq_envelope_schema.md` as the contract spec when designing the future replay iFlow.

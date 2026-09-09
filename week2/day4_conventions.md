@@ -97,10 +97,11 @@ Even if the script file already exists in the iFlow's project folder on disk, th
 3. In the step's properties, click *Browse / Select Script*.
 4. Choose **"Create"** for a new script, or **"Upload from file"** for an existing one.
 5. Save → the script appears under iFlow Resources automatically.
+6. **Click *Upgrade*, top-right corner.** This is the step people skip. Uploading or creating the script step does **not** by itself bind it to the v2 API — even if the file's content already has the correct v2 import and `processData` signature, the step won't actually run as v2 until you click *Upgrade*. Skip it, and the script fails or behaves unexpectedly at runtime despite looking correct on disk.
 
 **Do not** upload scripts directly via the Resources tab as a new resource. The Resources tab is for *.xsd*, *.xsl*, *.jks*, value mappings, and reference data — not Groovy scripts. Scripts uploaded that way end up with stale metadata, no Script step binding, and your changes won't be reflected at runtime even though the file exists.
 
-When updating an existing script file from disk, use the *Upgrade* option inside the Script step's properties — it replaces the file in place and keeps the binding.
+This *Upgrade* step only applies when a script lives directly inside an iFlow's own script step. Scripts referenced from a **Script Collection** don't go through this — the collection's own versioning handles it.
 
 ## 7. Sandbox restrictions you will hit
 
@@ -298,6 +299,7 @@ Note the deliberate trade-off: we *do* read the full body to a `String` because 
 5. **Deploy** to a fresh test iFlow:
    - HTTP sender → Script step (your new file) → return.
    - Upload via the *Script step dialog*, **not** the Resources tab.
+   - **Click *Upgrade* (top-right corner) after uploading.** Don't assume that because you already refactored the file to v2 in your editor, it'll just run as v2 — the step needs this explicit click to actually bind it, every time, regardless of what the file content already looks like. This is the step most people miss, and skipping it is why a perfectly-refactored script can still fail or misbehave at runtime.
 6. **Test** with `curl`:
    ```bash
    curl -u <u>:<p> -X POST "<runtime>" \
@@ -314,7 +316,7 @@ When the trainer comes around:
 
 - Do you have all v1 issues identified?
 - Does your refactored script use semicolons + explicit types + explicit imports?
-- Did you upload via the Script step dialog?
+- Did you upload via the Script step dialog, **and click Upgrade afterward**?
 - Do you have a `MessageLog` null guard?
 - Is the file under `scripts/standalone/` with the correct `roiam_*` name?
 - Did you write a changelog entry under `changelog/<iFlow name>/<date>_<note>.txt` for the test iFlow?
@@ -330,7 +332,7 @@ If you can answer yes to all six, you're ready for Friday's quiz.
 - **Body:** `getBody(java.io.Reader)` first; `String` only when you must.
 - **Naming:** `roiam_camelCaseName.groovy`. Ask for the suffix when creating a new script.
 - **Placement:** standalone in `scripts/standalone/`; iFlow scripts in `scripts/collections/<project>/`. Inside the iFlow project, always under `script/v2/`.
-- **Upload via Script step dialog**, never via the Resources tab.
+- **Upload via Script step dialog**, never via the Resources tab. **Click Upgrade (top-right) afterward** — for a script living directly in an iFlow step, that click is what actually binds it to v2, not the file content alone.
 - **Forbidden:** `Thread`, `System.out.println`, `java.util.logging`, top-level `class` next to `processData`, `@Grab`.
 - **MessageLog with null guard** every time you log.
 - **Changelogs at repo root** under `changelog/<iFlow>/<YYYY-MM-DD>_<note>.txt`. **Don't zip** until explicitly asked.

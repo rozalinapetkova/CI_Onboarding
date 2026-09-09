@@ -154,7 +154,7 @@ String classify(Throwable cause) {
 }
 ```
 
-Save under `scripts/collections/resilientOrderHub/roiam_captureErrorContext.groovy`. Inside the iFlow project, `script/v2/`. Upload via Script step dialog.
+Save under `scripts/collections/resilientOrderHub/roiam_captureErrorContext.groovy`. Inside the iFlow project, `script/v2/`. Upload via Script step dialog, then click *Upgrade* (top-right).
 
 Notes:
 
@@ -362,7 +362,7 @@ Three separate consumers (transient, poison/config, business) each ending approp
 ### Steps
 
 1. **Add an Exception Subprocess** to the main Integration Process pool. *Right-click pool → Add Exception Subprocess*. The Error Start Event appears.
-2. **First step in the subprocess: `roiam_captureErrorContext.groovy`** (section 5). Save under `scripts/collections/resilientOrderHub/`, place inside the iFlow under `script/v2/`, upload via Script step dialog.
+2. **First step in the subprocess: `roiam_captureErrorContext.groovy`** (section 5). Save under `scripts/collections/resilientOrderHub/`, place inside the iFlow under `script/v2/`, upload via Script step dialog, then click *Upgrade* (top-right).
 3. **Add a Router** after the capture script. Branches on `${property.errorClassification}`:
    - `poison`
    - `transient` AND `${property.CamelRedeliveryCounter} >= 3` → "transient-exhausted"
