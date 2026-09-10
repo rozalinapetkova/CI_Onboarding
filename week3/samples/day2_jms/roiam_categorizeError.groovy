@@ -5,9 +5,20 @@ import com.sap.it.script.v2.api.Message;
 // Reads:  property CamelExceptionCaught, header CamelHttpResponseCode
 // Writes: property errorCategory, header X-Error-Category, MessageLog stringProperty errorCategory
 //
+// The decision is made ONCE, immediately, from the nature of the error - never from how
+// many times it's already failed:
+//   - If there's a real chance a rerun succeeds (transient), let it retry. JMS has no
+//     adapter-level retry cap, so this can continue indefinitely - and that's fine. If it
+//     never actually recovers, it eventually goes "Blocked" in the source queue (the
+//     adapter's own Dead-Letter Queue checkbox, Connection tab) - an acceptable outcome
+//     for a case that was worth trying.
+//   - If we already know the message is broken and no number of retries will ever fix it
+//     (permanent), skip straight to a REAL, separate, reprocessable DLQ - on this first
+//     failure, not after any number of attempts.
+//
 // Downstream Router branches on ${property.errorCategory}:
-//   Retry  -> rethrow (let JMS retry-and-eventually-DLQ).
-//   Bypass -> send to DLQ via JMS receiver adapter, then End (swallow exception).
+//   Retry  -> Error End Event (rethrow; broker redelivers with backoff, indefinitely).
+//   Bypass -> send to the real DLQ via JMS receiver adapter, then Message End Event (swallow).
 
 def Message processData(Message message) {
     def headers = message.getHeaders();

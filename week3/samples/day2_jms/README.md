@@ -5,7 +5,7 @@ Maps to `week3/day2_jms.md`. Lab splits `roi_<initials>_OrderHub` into a produce
 | File | Purpose | Mapped section |
 |---|---|---|
 | `jms_receiver_producer_config.md` | JMS receiver adapter (producer side) — fields, persistence, response-code wiring | §4 |
-| `jms_sender_consumer_config.md` | JMS sender adapter (consumer side) — retries, backoff, DLQ Name | §5, §8 |
+| `jms_sender_consumer_config.md` | JMS sender adapter (consumer side) — retry interval, backoff, and why the adapter's own Dead-Letter Queue checkbox isn't a real DLQ | §5, §8 |
 | `queue_naming_reference.md` | `roi.<flow>.<purpose>.<initials>` convention + plan limits | §2, §10, §11 |
 | `producer_response_body.json` | Sample 202-Accepted response body returned by the producer | Lab step 1 |
 | `roiam_categorizeError.groovy` | v2 Groovy: classify exceptions as `Retry` or `Bypass`, set property + header + MessageLog | §9 |

@@ -31,7 +31,7 @@ This is the step-by-step for adding `sc_<initials>_OrderHubHelpers` as a referen
      1. *Script* — `roiam_categorizeError.groovy` (from Day 3.2; inline in this iFlow or in the collection if you've promoted it).
      2. *Router* on `${property.errorCategory}` — branches Retry vs Bypass.
      3. *Script* — `roiam_formatError.groovy` (this one) — builds the canonical error JSON.
-     4. Either End Throw (Retry) or JMS receiver to DLQ + End (Bypass).
+     4. Either an Error End Event (Retry) or a JMS receiver to DLQ + Message End Event (Bypass).
 5. Save → bump iFlow version → Deploy.
 
 ## Verifying after deploy

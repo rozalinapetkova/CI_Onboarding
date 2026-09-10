@@ -1,6 +1,11 @@
 # JMS retry policy — adapter configuration reference
 
-JMS retry runs *before* the Exception Subprocess fires. By the time the subprocess sees a message, the broker has already exhausted its retry budget. Configure the adapter carefully — over-aggressive retries hide problems; too-few retries surface every transient blip as an alert.
+The JMS adapter's retry is simple: on an unhandled exception, the Exception Subprocess fires (**every** attempt, not once at the end). The subprocess decides — immediately, from the nature of the error, not from how many times it's already failed — whether this is worth retrying at all:
+
+- **Transient** (might succeed on a future attempt) → rethrow. The broker redelivers after a backoff delay, **indefinitely** by default. That's intentional: if it never actually recovers, the message eventually ends up `Blocked` in the source queue (Section "Dead-Letter Queue" below) — an acceptable outcome for a case that was worth trying.
+- **Permanent** (no number of retries will ever fix it) → route straight to a real DLQ, on this first failure, no waiting.
+
+There's no adapter-level attempt limit and no "try N times then decide it's permanent" logic anywhere — that split is made once, by classification, same as Day 3.2 (`week3/samples/day2_jms/exception_subprocess_wiring.md`).
 
 ## Where it's configured
 
@@ -11,35 +16,23 @@ Sender (JMS) > Processing tab
 ├─ Number of Concurrent Processes:  5 (default; tune per throughput)
 ├─ Retry Interval (s):              60
 ├─ Exponential Backoff:             Yes
-├─ Maximum Backoff (s):             3600
-├─ Dead-Letter Queue:               Yes  ← required for poison handling
-├─ Maximum Redelivery:              5
-└─ Acknowledge Mode:                Client
+└─ Maximum Retry Interval (s):      3600
+
+Sender (JMS) > Connection tab
+└─ Dead-Letter Queue:               checked (see caveat below)
 ```
 
-These don't map 1:1 onto the AMQP Sender for Event Mesh. The retry count carries over conceptually (there it's `Max. Number of Retries`), but there's no `Acknowledge Mode` field on the AMQP adapter at all — acknowledgement there is automatic, tied to whether the iFlow run completed successfully, not a setting you pick. See `amqp_vs_jms_reference.md` (Day 4.3) for the detail.
+**No `Maximum Redelivery` or `Acknowledge Mode` fields exist on this adapter.** The `Dead-Letter Queue` field *does* exist, but it's a checkbox with no name, and it's a much blunter tool than it sounds: a message whose retries exhaust it is marked `Blocked` **in the same source queue** — not moved anywhere, no automatic reprocessing, and not limited to node crashes (any exhausted-retry message ends up there if nothing catches it first). Building a real, separate, reprocessable DLQ is logic you write yourself in the Exception Subprocess's categorization script — deciding Retry vs. Bypass immediately, not by counting attempts.
+
+These fields don't map 1:1 onto the AMQP Sender for Event Mesh either. AMQP has real `Max. Number of Retries` and `Dead Message Queue` fields directly on the queue — a genuinely different (adapter/broker-managed, separate-queue) model from JMS's blunt-checkbox-plus-build-it-yourself one. There's no `Acknowledge Mode` field on either adapter — acknowledgement on both is automatic, tied to whether the iFlow run completed successfully, not a setting you pick. See `amqp_vs_jms_reference.md` (Day 4.3) for the detail.
 
 ## Field-by-field
 
-### Maximum Redelivery (count)
+### Retry Interval + Exponential Backoff + Maximum Retry Interval
 
-The number of delivery attempts before the broker stops re-delivering. After the count, the broker either:
-- Moves the message to the configured DLQ (if Dead-Letter Queue = Yes), or
-- Logs and discards (if no DLQ).
-
-| Value | Implication |
-|---|---|
-| `0` | No retry at all. One shot, then DLQ. Use only for messages where retry is meaningless. |
-| `1–2` | Aggressive surfacing. Transient failures alert quickly. Right for low-volume, high-stakes flows. |
-| `3–5` | **Team default.** Absorbs short outages (~10 minutes with exponential backoff). |
-| `6–10` | Patient. Tolerates broker / downstream restarts. May hide slow-to-fix problems behind retry noise. |
-| `∞` | Never. Always set a finite limit. |
-
-### Retry Interval + Exponential Backoff
-
-- **Retry Interval** is the *initial* delay before the first re-delivery
-- **Exponential Backoff** doubles each subsequent interval until it hits Maximum Backoff
-- Effective backoff schedule with Retry Interval=60s, Maximum Backoff=3600s, Maximum Redelivery=5:
+- **Retry Interval** is the *initial* delay before the first redelivery.
+- **Exponential Backoff** doubles each subsequent interval until it hits Maximum Retry Interval.
+- Effective backoff schedule with Retry Interval=60s, Maximum Retry Interval=3600s, for a message correctly classified as transient:
 
 | Attempt | Delay before this attempt | Cumulative elapsed |
 |---|---|---|
@@ -48,79 +41,63 @@ The number of delivery attempts before the broker stops re-delivering. After the
 | 3 | 120s | 180s |
 | 4 | 240s | 420s |
 | 5 | 480s | 900s (15 min) |
-| 6 (final) | 960s | ~1860s (31 min) |
+| 6 | 960s | ~1860s (31 min) |
+| ... | keeps doubling, capped at 3600s | continues indefinitely |
 
-After attempt 6 fails, the broker DLQs the message. **Total absorbed downtime: ~30 minutes.** Use this number to decide whether your retry config matches your SLA.
+There's no last row on purpose — a transient classification means "keep trying as long as it might work." If it never recovers, the message eventually goes `Blocked`, which is fine: it was correctly classified, it just happened not to succeed.
 
-### Maximum Backoff (cap)
+### Dead-Letter Queue — real one vs. adapter checkbox
 
-Without this cap, exponential backoff for high Maximum Redelivery values becomes absurd (hour-long pauses between retries). 3600s (1h) is the team default. Set lower for fast-moving flows; never higher than the iFlow's SLA.
+**The real one** is just a queue you create and name yourself (e.g. `roi.orderhub.dlq.<initials>`), populated only by your categorization script's Bypass branch routing to it via a JMS receiver adapter, then swallowing (Message End Event), **on the first attempt** — not after any number of retries. There's no name field on the adapter for it.
 
-### Dead-Letter Queue
-
-The destination after Maximum Redelivery is exhausted. **Always set Yes** unless you genuinely want messages dropped (rare; almost always wrong).
+**The adapter's own `Dead-Letter Queue` checkbox** (Connection tab) is a different, much blunter thing: it doesn't create a separate queue at all. A message whose retries exhaust it — for any reason, not just node crashes — just gets marked `Blocked` in the *same* source queue, with no automatic reprocessing. It's the fallback for transient-but-never-recovers messages, not a replacement for routing permanent failures to your real DLQ immediately.
 
 DLQ naming convention:
 ```
-roi.orderhub.queue       →  roi.orderhub.queue.DLQ      (auto-generated by some brokers)
-roi.orderhub.retry       →  roi.orderhub.retry.DLQ
+roi.orderhub.queue       →  roi.orderhub.dlq      (your own queue, your own naming)
+roi.orderhub.retry       →  roi.orderhub.retry.dlq
 ```
 
 Or use a *single shared DLQ*: `roi.orderhub.dlq` (the team's convention) — all DLQ traffic converges there with the envelope's `originalEntryPoint` field telling consumers where the message came from.
 
-### Acknowledge Mode
+### Acknowledgement — automatic, not a setting
 
-| Mode | Behavior | Use when |
-|---|---|---|
-| `Client Acknowledgement` | iFlow ACKs only after successful processing | **Always use this.** Required for at-least-once semantics. |
-| `Auto-Acknowledge` | ACK on delivery, before processing | Never use in production — partial failures cause silent message loss |
+There's no acknowledgement-mode dropdown on the JMS Sender. What actually happens: the adapter acknowledges a message to the broker when the iFlow run that consumed it completes successfully (Message End Event, including the swallow-after-DLQ-enqueue path). If the run ends via an Error End Event, no acknowledgement is sent and the broker redelivers. This is effectively always "client acknowledgement" behavior — it's just not a mode you select, same as the AMQP adapter (`amqp_vs_jms_reference.md`).
 
 ## The redelivery counter
 
-Every re-delivered message carries `CamelRedeliveryCounter` (an integer header). The capture-context script reads it; the alert builder uses it to suppress alerts on early retries.
+Every redelivered message carries `SAPJMSRetries` (an integer header, populated only for Non-Exclusive consumers — never available on Exclusive queues), tracking how many times the broker has redelivered it. Useful for observability — an alert on "a transient-classified message has retried an unusually long time" — but it's not part of the Retry/Bypass decision itself. That decision is made once, from the error's nature, before there's any retry count to look at.
 
-| Counter value | Meaning |
-|---|---|
-| `0` | First delivery attempt |
-| `1–4` | Within retry budget — adapter is still trying |
-| `5` (== Max) | Final attempt; next failure goes to DLQ |
-| `5+` after DLQ | Should not happen — if it does, the DLQ is being re-consumed without resetting the counter |
+## When to escalate during retry
 
-The Exception Subprocess fires at attempt 6 (after the broker gives up). Alerts should generally suppress for counter < Max, since the in-flight retries aren't actionable for ops yet.
-
-## When to escalate during retry, not after
-
-The default — wait for DLQ — assumes that 30 minutes of silent retry is acceptable. For some flows it's not. To escalate earlier:
+A message correctly classified as transient can legitimately retry for a long time. If ~30 minutes (or longer) of silent retry isn't acceptable for a given flow, escalate independently of the per-message mechanism:
 
 1. Use a *separate* monitoring iFlow that polls the source queue depth.
-2. Alert when depth > N or message age > M minutes (Cloud ALM rule).
-3. This is independent of the per-message retry mechanism; the queue-level signal catches "many messages backed up" while individual messages are still retrying.
+2. Alert when depth > N or message age > M minutes (Cloud ALM rule), or on a message's `SAPJMSRetries` climbing unusually high.
+3. This is independent of the per-message retry mechanism; the queue-level signal catches "many messages backed up" while individual messages are still legitimately retrying.
 
-Don't try to escalate inside the Exception Subprocess on counter == 2 — you'll get N alerts per failure (one per retry).
+Don't try to escalate inside the Exception Subprocess on every early attempt — you'll get N alerts per failure (one per retry).
 
 ## Coordination with the subprocess
 
-The subprocess runs **once**, after the broker exhausts retries. It doesn't see attempt 1, 2, 3, 4, 5 — only the final terminal failure. This means:
+The subprocess runs on **every** attempt, not once at the end — there's no separate broker-side phase that hands off only after exhaustion:
 
-| Subprocess responsibility | Adapter responsibility |
+| Subprocess responsibility | Adapter/broker responsibility |
 |---|---|
-| Classify the (terminal) error | Time the retries |
-| Build DLQ envelope | Move message to DLQ on exhaustion |
-| Build alert event | Maintain redelivery counter |
-| Send alert | Send the ACK on success |
+| Classify the error (transient vs. permanent) immediately, on this attempt | Time the delay before the next redelivery |
+| Rethrow (Retry) or route to the real DLQ (Bypass) based on that classification | Increment `SAPJMSRetries` on each redelivery; mark `Blocked` if a transient message never recovers |
+| Build the DLQ envelope for the Bypass path | Send the ACK when the subprocess ends via Message End Event |
 
-If you find yourself wanting the subprocess to "wait and retry", you're solving an adapter problem in the wrong layer. Tune Maximum Redelivery / backoff instead.
+If you find yourself wanting the subprocess to count attempts before deciding, you're solving the wrong problem — the decision is about the error's *nature*, not its *age*. Tune Retry Interval / Exponential Backoff for how long a transient failure is allowed to keep trying; that's separate from whether it should be trying at all.
 
 ## Common misconfigurations
 
 | Mistake | Symptom | Fix |
 |---|---|---|
-| `Maximum Redelivery: 0` + DLQ enabled | Every transient blip goes to DLQ immediately | Set to 3–5 for normal flows |
-| `Auto-Acknowledge` | Messages disappear on iFlow errors; never DLQ'd | Switch to Client Acknowledgement |
-| No DLQ configured | Bad messages loop forever or are silently dropped | Always configure DLQ |
-| `Maximum Backoff` < `Retry Interval` | Backoff has no effect | Maximum ≥ initial |
-| Different retry policies on JMS Sender + AMQP Sender for the same logical flow | Inconsistent SLA depending on entry path | Standardize on a team policy across all entry adapters |
-| Maximum Redelivery: 50 | Outages take 4 hours to surface | Reduce; if you need that much patience, you have a deeper problem |
+| Categorization script mis-classifies a permanent error as transient | Retries indefinitely instead of reaching the real DLQ immediately; eventually goes `Blocked` in the source queue | Fix the classification — permanent failures skip straight to Bypass, not after any number of attempts |
+| Categorization script mis-classifies a transient error as permanent | Genuinely-recoverable failures get pulled out of retry and dumped in the DLQ prematurely | Fix the classification the other way |
+| `Maximum Retry Interval` < `Retry Interval` | Backoff has no effect | Maximum ≥ initial |
+| Different classification rules on JMS Sender + AMQP Sender for the same logical flow | Inconsistent behavior depending on entry path | Standardize the transient/permanent rule set across all entry adapters |
 
 ## Cross-reference
 
@@ -130,3 +107,4 @@ If you find yourself wanting the subprocess to "wait and retry", you're solving 
 | Retry queue (for "retry later, not now" use case) | `retry_queue_pattern.md` |
 | What goes in DLQ vs retry queue | `dlq_envelope_schema.md` (classification field) |
 | Alert suppression during in-flight retries | `alert_categories_reference.md` |
+| The Retry/Bypass pattern itself, full detail | `week3/samples/day2_jms/exception_subprocess_wiring.md` |

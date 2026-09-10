@@ -41,7 +41,7 @@ JMS sender (roi.orderhub.dlq.<initials>) ──► Content Modifier (clear error
 - **One-shot:** deploy, let it drain the DLQ, undeploy. Do not leave it running.
 - **Clear `X-Error-Category` and `X-DLQ-Reason`** before re-enqueue — otherwise the replayed message still carries error metadata that confuses tracing.
 - **Concurrent Processes = `1`** — replaying is bursty enough as-is, don't compound.
-- **No DLQ on this iFlow** — if a replay fails, you want it to land back in the original DLQ (auto-DLQ) so you don't loop forever.
+- **No exception handling of its own on this replay iFlow** — if the replayed message fails again, let the consumer's own Exception Subprocess (already deployed) categorize and route it back to `roi.orderhub.dlq.<initials>`, so you don't loop forever.
 
 The replay iFlow is **not** part of the normal Order Hub topology. It exists as a deployable artifact in the team's repo and gets deployed only when needed.
 

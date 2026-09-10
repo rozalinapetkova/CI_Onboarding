@@ -15,8 +15,8 @@
 | Symptom | Likely cause | Fix |
 |---|---|---|
 | Consumer run shows *Failed* with no Exception Subprocess detail | No exception subprocess attached, or attached but has no script step | Always attach an Exception Subprocess with `roiam_categorizeError.groovy` |
-| Consumer retries 3 times on a 400 response, then DLQs | Categorization not running OR `errorCategory` defaults to Retry for 4xx | Verify Router branches: `Bypass = ${property.errorCategory} = 'Bypass'`. Verify categorization script sets Bypass on 400-499 (except 408, 429) |
-| Same message appears in DLQ four times for one logical failure | Exception Subprocess uses `End Throw` for Bypass branch — rethrows after explicit DLQ enqueue. JMS then retries 3 more times | Bypass branch must end with regular `End` (swallow), not `End Throw` |
+| Consumer keeps retrying a 400 response indefinitely, never reaches the DLQ | Categorization not running OR `errorCategory` defaults to Retry for 4xx | Verify Router branches: `Bypass = ${property.errorCategory} = 'Bypass'`. Verify categorization script sets Bypass on 400-499 (except 408, 429) |
+| Same message appears in DLQ repeatedly for one logical failure | Exception Subprocess uses an Error End Event for the Bypass branch — rethrows after explicit DLQ enqueue, so the broker keeps redelivering on top of that | Bypass branch must end with a Message End Event (swallow), not an Error End Event |
 | Consumer iFlow stuck in *In Progress* state for >5 minutes | Lock Timeout shorter than worst-case processing → message reclaimed → duplicate in-flight | Raise Lock Timeout. Also: check downstream isn't deadlocking |
 | `Concurrent Processes = 4` but only one worker draining | Access Type = `Exclusive` overrides Concurrent Processes | Pick one model. Exclusive = single-thread always; Non-Exclusive = N workers × Concurrent Processes |
 | Random duplicate processing | A message was reclaimed mid-flight due to Lock Timeout, then both old and new worker completed | Raise Lock Timeout. Make consumer idempotent (Day 3.4 Data Store pattern) |
@@ -28,7 +28,7 @@
 | DLQ has messages but Alert Notification didn't fire | Alert rule not configured on this queue, or threshold set to >current depth | Week 4: configure Alert Notification on DLQ depth > 0 |
 | DLQ messages don't show original error category | Categorization headers not preserved on enqueue, or DLQ envelope Content Modifier overwriting them | Set `X-Error-Category` and `X-DLQ-Reason` as outbound headers on the DLQ JMS receiver |
 | Replay loop — same message in DLQ five times | Bypass-class message replayed without fixing root cause | Stop. Read `replay_dlq_runbook.md`. Fix the cause, then replay |
-| DLQ name shows `<queue>.dlq` (auto-generated) instead of the configured one | DLQ Name field left blank on JMS sender adapter | Always set DLQ Name explicitly |
+| Permanent-failure messages never reach the real DLQ, they pile up `Blocked` in the source queue instead | Categorization script mis-classifies a permanent error as transient — it retries indefinitely instead of routing to Bypass on attempt one | Fix the classification so permanent failures reach the real DLQ immediately, not after retries exhaust |
 
 ## Queue / broker / plan-limit failures
 
@@ -51,4 +51,4 @@
 
 5. **Retry counter not visible in MPL.** Standard MPL view doesn't show JMS retry attempts as separate runs — each retry attempt is logged inside the same run's processing log. To see the retry sequence: *Monitor → Message Queues → message detail → Processing History*.
 
-6. **"Working" consumer that silently drops messages.** End Throw never wired in the Retry branch — the subprocess ends normally on every failure → JMS thinks every message processed → no retry, no DLQ, no record. Look for a queue with high producer throughput and zero DLQ accumulation despite known-failing downstream — that's silent data loss. Always test failure paths.
+6. **"Working" consumer that silently drops messages.** No Error End Event wired in the Retry branch — the subprocess ends normally (Message End Event) on every failure → JMS thinks every message processed → no retry, no DLQ, no record. Look for a queue with high producer throughput and zero DLQ accumulation despite known-failing downstream — that's silent data loss. Always test failure paths.

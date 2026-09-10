@@ -64,20 +64,22 @@ JMS-decoupled = **two iFlows**, not one with a JMS step in the middle.
 
 `roi.<flow>.<purpose>` — lower-case, dot-separated. Lab: suffix `<your_initials>`.
 
-### DLQ — always set
+### DLQ — the checkbox isn't a real one
 
-| Without DLQ | With DLQ |
+JMS has no "Number of Retries" field. The **Dead-Letter Queue** checkbox (Connection tab) is real, but it's not a DLQ in any operable sense: a message that exhausts retries — for any reason, not just node crashes — is just marked `Blocked` **in the same source queue**, no name, no automatic reprocessing. Retries themselves are **indefinite** by default.
+
+| Checkbox alone | + your own DLQ pattern |
 |---|---|
-| Failed messages clog the source queue | Failed messages cleanly isolated |
-| Operations can't distinguish "in retry" vs. "stuck" | Source queue clean, DLQ inspectable/replayable |
-| No alerting hook on permanent failure | Alert Notification can watch DLQ depth |
+| A permanent failure retries needlessly, only ending up `Blocked` in the source queue — no workflow around it | Recognized as permanent immediately, routed straight to a real separate queue you can inspect/fix/replay |
+| Operations can't distinguish "in retry" vs. "stuck" without checking status | Source queue clean, DLQ inspectable/replayable |
+| No alerting hook on permanent failure | Alert Notification can watch your DLQ's depth |
 
-**Always set DLQ Name explicitly.** Never leave default.
+The split isn't about attempt count — it's decided immediately from the error's nature. A genuinely transient failure is *meant* to retry indefinitely; ending up `Blocked` eventually if it never recovers is a fine outcome, not a bug.
 
 ### Retry vs. Bypass — mandatory categorization
 
-- **Retry** — transient (502/503/504, timeout, downstream maintenance). Rethrow → JMS retries with backoff → DLQ after N.
-- **Bypass** — permanent (400, 401/403, 422, schema fail). Route directly to DLQ + **swallow** the exception. Never burn retry cycles on a 400.
+- **Retry** — transient (502/503/504, timeout, downstream maintenance). Rethrow (Error End Event) → JMS redelivers with backoff, indefinitely. That's intentional.
+- **Bypass** — permanent (400, 401/403, 422, schema fail). Route directly to your DLQ + **swallow** the exception (Message End Event), on the first failure. Never burn retry cycles on a 400.
 
 Categorization Groovy lives in the consumer's Exception Subprocess:
 
@@ -91,7 +93,7 @@ if (httpCode != null && httpCode >= 400 && httpCode < 500
 message.setProperty("errorCategory", category);
 ```
 
-Router after script: `Retry` → throw; `Bypass` → JMS receiver to DLQ → End normally.
+Router after script: `Retry` → Error End Event (rethrow); `Bypass` → JMS receiver to DLQ → Message End Event (swallow).
 
 ### Concurrency knobs
 
@@ -261,7 +263,7 @@ Inbound POST
 - **`nr_<your_initials>_*`** — Number Range artifact names.
 - **`ds_<your_initials>_*`** — Data Store artifact names.
 - **Allowed Headers list** on ProcessDirect adapters always explicit, never default-empty.
-- **DLQ Name** on JMS sender always explicit.
+- **DLQ queue names** on JMS consumers always explicit — but note there's no adapter field for it; the queue is created and referenced yourself in the Exception Subprocess.
 - **TTL** on Data Store Write always explicit.
 - Script files inside Script Collections live under `src/main/resources/script/v2/`, same `roiam_*` prefix.
 - After Dev→QA transport: reset Number Ranges, clear test Data Store entries. Runbook task.
