@@ -132,10 +132,7 @@ Need state on the other side? Lift property → header before the call; rehydrat
 
 ### MEP
 
-- **Request-Reply** — need callee's body back.
-- **One-Way (Send)** — fire-and-forget side effects.
-
-MEP mismatch between caller and callee = cryptic deploy error.
+**Request-Reply only.** ProcessDirect has no fire-and-forget option — no MEP to choose, and so no MEP-mismatch failure mode between caller and callee. Want fire-and-forget between iFlows? Use JMS.
 
 ### Subflow vs. ProcessDirect
 

@@ -132,16 +132,16 @@ HTTPS POST ─▶ roi_CustomerEchoService (main)
 ### Steps
 
 1. **Create the consumer iFlow `roi_<your_initials>_CustomerLogger`.**
-   - Sender: **ProcessDirect** at address `/ProcessDirect/<your_initials>_customerLog`. MEP: One-Way.
+   - Sender: **ProcessDirect** at address `/ProcessDirect/<your_initials>_customerLog`. MEP: Request-Reply — it's the only option ProcessDirect has, even for a call like this one that's logically just a side effect.
    - Inside the IP: a **Script step** is *not* required for today; instead use a Content Modifier that sets a header `X-Logged: true`.
    - End event.
    - Save → version → deploy. Wait for "Started".
 
 2. **Open the main iFlow `roi_<your_initials>_CustomerEchoService`.**
    - Add a **ProcessDirect receiver** call:
-     - Drop a *Send* step (one-way, fire-and-forget) — *not* Request-Reply, since we don't need a response.
+     - Drop a *Request-Reply* step — ProcessDirect only supports Request-Reply, there's no fire-and-forget variant, even though we don't actually need the response body here (we just ignore it).
      - Wire to a new receiver pool, adapter type **ProcessDirect**, address `/ProcessDirect/<your_initials>_customerLog`.
-     - Click the adapter's *Allowed Headers* — add `correlationId, customerId` so the consumer can see them.
+     - Click the adapter's *Allowed Headers* — add `correlationId|customerId` so the consumer can see them.
    - Add a **Data Store Write** step:
      - Operation: *Write*.
      - Data Store Name: `CustomerEcho`.

@@ -21,8 +21,8 @@ During the lab you can **keep the HTTPS sender alongside** the ProcessDirect sen
 | Property | Lab value | Why |
 |---|---|---|
 | Address | `/orderTranslator/v1/translate/<your_initials>` | **Must match the caller's Address exactly.** Including the `<initials>` suffix |
-| Message Exchange Pattern (MEP) | `Request-Reply` | Matches the caller's expectation. Mismatch = deploy error |
-| Allowed Headers | `correlationId,orderId,X-Order-Format,X-Idempotency-Key,X-Order-Sequence` | Filter on the way *in*. Same list or a superset of the caller's |
+| Message Exchange Pattern (MEP) | `Request-Reply` | The only MEP ProcessDirect has — nothing else to set |
+| Allowed Headers | `correlationId\|orderId\|X-Order-Format\|X-Idempotency-Key\|X-Order-Sequence` | Filter on the way *in*. Same list or a superset of the caller's |
 
 ## Allowed Headers — caller list vs callee list
 
@@ -30,10 +30,10 @@ The two adapters each have their own Allowed Headers field. Both must include a 
 
 | Caller allows | Callee allows | Result |
 |---|---|---|
-| `correlationId,orderId` | `correlationId,orderId` | Both propagate |
-| `correlationId,orderId` | `correlationId` | Only `correlationId` reaches callee; `orderId` filtered |
-| `correlationId,orderId` | *(empty)* | Nothing reaches callee — most common bug |
-| *(empty)* | `correlationId,orderId` | Nothing leaves caller — also common |
+| `correlationId\|orderId` | `correlationId\|orderId` | Both propagate |
+| `correlationId\|orderId` | `correlationId` | Only `correlationId` reaches callee; `orderId` filtered |
+| `correlationId\|orderId` | *(empty)* | Nothing reaches callee — most common bug |
+| *(empty)* | `correlationId\|orderId` | Nothing leaves caller — also common |
 
 **Project convention: keep the two lists identical.** Manage drift with a comment in the iFlow XML rather than asymmetric lists.
 
@@ -67,7 +67,6 @@ Each address starts a run in its own branch (you'd use a Router right after the 
 | Wrong | Symptom | Fix |
 |---|---|---|
 | Address typo (different from caller's) | Caller fails with "no consumer registered for endpoint" | Match the strings exactly. Copy-paste, don't re-type |
-| MEP = One-Way but the iFlow has steps returning a body | Body never returned to caller — caller's body unchanged | Set MEP = Request-Reply |
 | Callee Allowed Headers does not include `correlationId` | Tracing breaks despite caller setting it | Symmetric lists |
 | Caller deployed before callee | Caller deploys fine, runtime fails on first call: "no consumer" | Deploy callee first, then caller |
 | Two callees registered on the *same* Address | Deploy error: "duplicate endpoint" | One Address = one callee. Use different versions for the same logical endpoint |

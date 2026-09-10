@@ -17,7 +17,7 @@ ProcessDirect receiver step at the end of the happy path, after the country look
 | Setting | Value | Notes |
 |---|---|---|
 | Address | `/ProcessDirect/<initials>_customerLog` | Must match the consumer's listener exactly. |
-| Allowed Headers | `correlationId, customerId` | **Critical** — only headers on this comma-separated list cross the boundary. Everything else is dropped. |
+| Allowed Headers | `correlationId\|customerId` | **Critical** — only headers on this pipe-separated list cross the boundary. Everything else is dropped. |
 
 > The headers field is an **allow-list**, not a filter. If you forget `customerId` here, the consumer's Data Store key will be null.
 
@@ -29,7 +29,7 @@ ProcessDirect sender step as the start of the consumer iFlow.
 |---|---|---|
 | Address | `/ProcessDirect/<initials>_customerLog` | Same string. |
 
-That's it — no auth, no MEP, no allow-list on the receiving side. The receiving iFlow just listens.
+That's it — no auth. MEP is Request-Reply (ProcessDirect's only option, set here too). The receiving iFlow just listens.
 
 ## Properties — the trap
 

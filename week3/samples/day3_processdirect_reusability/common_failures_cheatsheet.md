@@ -6,9 +6,7 @@
 |---|---|---|
 | Caller fails immediately: "no consumer registered for endpoint /orderTranslator/v1/translate" | Callee iFlow not deployed, or its ProcessDirect sender Address typo | Deploy callee first. `Monitor → Started iFlows` confirms status `Started`. Diff Address strings character-by-character |
 | Caller deploys and runs; callee MPL has no run | Caller's ProcessDirect Address doesn't match any callee's ProcessDirect sender | Same — Address must match exactly. Lab uses `/orderTranslator/v1/translate/<initials>` |
-| Caller's MPL run shows Failed at the ProcessDirect sub-step with cryptic deploy error | MEP mismatch — Request-Reply on one side, One-Way on the other | Match MEPs |
-| Callee MPL run completes but caller's body is unchanged after the call | MEP is One-Way (Send) — by design no reply | If you need the reply, set MEP = Request-Reply on both sides |
-| Callee MPL `Headers` tab shows the body but `correlationId` is empty | Allowed Headers list missing the header on caller OR callee | Symmetric lists: `correlationId,orderId,X-Order-Format,X-Idempotency-Key,X-Order-Sequence` on both |
+| Callee MPL `Headers` tab shows the body but `correlationId` is empty | Allowed Headers list missing the header on caller OR callee | Symmetric lists: `correlationId\|orderId\|X-Order-Format\|X-Idempotency-Key\|X-Order-Sequence` on both |
 | Property `errorCategory` is null on the callee even though set on caller | Properties **never** propagate through ProcessDirect | Lift to a header before the call; restore to property after |
 | Caller's MPL and callee's MPL aren't linked in the "Continues to" view | `correlationId` not in the allow-list, or never set in the first place | Always allow-list `correlationId`. Set it at the HTTPS sender's first Content Modifier |
 | Two ProcessDirect senders on the same iFlow with the same Address | Deploy error: duplicate endpoint | One Address = one sender. Use distinct versions or operations |

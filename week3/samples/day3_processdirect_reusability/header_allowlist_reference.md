@@ -30,15 +30,14 @@ Pre-allow-listing `X-Idempotency-Key` and `X-Order-Sequence` today is deliberate
 
 ## Setting it in the cockpit
 
-ProcessDirect adapter → *Connection* (or *Processing*) tab → *Allowed Headers* field. Comma-separated, **case-sensitive**, no wildcards:
+ProcessDirect adapter → *Connection* (or *Processing*) tab → *Allowed Headers* field. Pipe-separated, **case-sensitive**, no wildcards:
 
 ```
-correlationId,orderId,X-Order-Format,X-Idempotency-Key,X-Order-Sequence
+correlationId|orderId|X-Order-Format|X-Idempotency-Key|X-Order-Sequence
 ```
 
 | Form | Works? |
 |---|---|
-| `correlationId, orderId` (space after comma) | Tolerated, but team style is no spaces — easier to diff |
 | `*` (wildcard) | **Not supported.** Explicit names only |
 | `correlation-id` (renamed mid-flight) | Header would have to actually be named that. Match the actual header name |
 
@@ -49,7 +48,7 @@ ProcessDirect adapter blocks in iFlow XML contain a property:
 ```xml
 <bpmn2:property>
   <bpmn2:key>allowedHeaders</bpmn2:key>
-  <bpmn2:value>correlationId,orderId,X-Order-Format,X-Idempotency-Key,X-Order-Sequence</bpmn2:value>
+  <bpmn2:value>correlationId|orderId|X-Order-Format|X-Idempotency-Key|X-Order-Sequence</bpmn2:value>
 </bpmn2:property>
 ```
 

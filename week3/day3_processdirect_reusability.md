@@ -42,7 +42,7 @@ What it does **not** do:
 
 ## 3. The header allow-list (the trap you only fall into once)
 
-On the **caller** side, the ProcessDirect receiver adapter has an **Allowed Headers** field — a comma-separated list of header names that *will* propagate to the callee. Default: empty. **Empty means no headers go through.**
+On the **caller** side, the ProcessDirect receiver adapter has an **Allowed Headers** field — a pipe-separated list of header names that *will* propagate to the callee. Default: empty. **Empty means no headers go through.**
 
 On the **callee** side, the ProcessDirect sender adapter *also* has an Allowed Headers field — a filter applied on the way in. Default: empty. **Empty means no headers received.**
 
@@ -50,22 +50,19 @@ So: a default-configured ProcessDirect link transmits the body and *nothing else
 
 The fix:
 
-1. **On the caller's ProcessDirect receiver**, set Allowed Headers to a comma-separated list, e.g. `correlationId,orderId,X-Order-Format,X-Idempotency-Key,X-Order-Sequence`.
+1. **On the caller's ProcessDirect receiver**, set Allowed Headers to a pipe-separated list, e.g. `correlationId|orderId|X-Order-Format|X-Idempotency-Key|X-Order-Sequence`.
 2. **On the callee's ProcessDirect sender**, set the same list (or a superset) so the callee will accept them.
 3. Verify in the Monitor — open the callee's MPL run, *Headers* tab, confirm your allow-listed headers are visible.
 
 **Properties never propagate, period.** If you need a piece of state on the other side, lift it to a header at the caller's last step before the ProcessDirect call, and push it back to a property on the callee's first step.
 
-## 4. Sync vs. async ProcessDirect
+## 4. ProcessDirect is Request-Reply only
 
-The *caller's* ProcessDirect receiver adapter has a *Message Exchange Pattern* setting:
+There's no fire-and-forget option here. **ProcessDirect only supports Request-Reply** — the caller always waits for the callee to finish and gets a body back, even for calls that are logically "just" a side effect (logging, audit, fan-out notifications). There's no "One-Way" or "Send" MEP to pick instead, and so no MEP-mismatch failure mode between caller and callee to worry about — there's only one option, on both sides.
 
-- **Request-Reply** — the caller waits for the callee to finish and gets back a body. Use when you need the callee's output (e.g. transformation library — Order Translator).
-- **One-Way (Send)** — the caller fires-and-forgets. Use when the callee is just doing side-effect work (logging, audit, fan-out notifications).
+If you genuinely want fire-and-forget semantics between two iFlows, that's what JMS is for (Day 3.2) — ProcessDirect is synchronous, in-memory, intra-tenant composition, not a queue.
 
-The *callee's* sender adapter sees the same MEP — and if there's a mismatch, deploy fails with a cryptic error. **Match MEP to the use case** and to the callee's expectation.
-
-Today's lab uses Request-Reply because the Order Translator returns the canonical XML.
+Today's lab uses ProcessDirect because the Order Translator returns the canonical XML and we need that body back — which happens to be the only mode ProcessDirect has anyway.
 
 ## 5. Versioned endpoints — the discipline that saves your future self
 
@@ -176,7 +173,6 @@ Both `roi_<your_initials>_OrderHub` and `roi_<your_initials>_OrderHubConsumer` r
 - **Forgetting the header allow-list** — the #1 ProcessDirect bug. Always allow-list explicitly; don't rely on defaults.
 - **Trying to propagate properties via ProcessDirect.** Doesn't work, never has, never will. Lift to a header.
 - **Endpoint without a version segment** — `/orderTranslator/translate` works fine until the day it doesn't. `/v1/` from the start.
-- **MEP mismatch** between caller and callee — Request-Reply on one side, One-Way on the other. Cryptic deploy error.
 - **Putting too much in a Script Collection too early** — the abstraction should emerge from at least two real consumers, not from speculation.
 - **Editing a Script Collection without bumping its version** — operations sees the same version number with new behavior. Bump the version. Every. Time.
 - **Script Collection upload via Resources tab on each iFlow** — wrong; the Script Collection is added as a *Reference* on the iFlow, and the script files live in the *Script Collection's* own resources, not in each iFlow's. Same project memory rule as Week 2: scripts upload through the Script step dialog, never via Resources.
@@ -361,7 +357,6 @@ Both `roi_<your_initials>_OrderHub` and `roi_<your_initials>_OrderHubConsumer` r
 
 - **Empty Allowed Headers list** on the ProcessDirect adapter — call the iFlow, inspect translator MPL, see no `correlationId`. Fix.
 - **Wrong endpoint** — caller points at `/orderTranslator/v2/translate` but only v1 exists. Caller fails fast with "no consumer". Lesson: deploy callee first.
-- **MEP mismatch** — caller set to Request-Reply, callee's ProcessDirect sender accidentally One-Way. Cryptic deploy error on the caller. Lesson: match MEPs.
 - **Script Collection deployed but iFlow doesn't see new behavior.** Likely: iFlow is pinned to v1.0; you deployed v1.1 of the collection. Either bump pin or use "latest" reference. Confirm the iFlow's Script Collection reference version.
 - **Script Collection edited but not redeployed** — you saved in the editor but didn't hit Deploy. Same old behavior. Always deploy after edit.
 
@@ -372,7 +367,7 @@ Both `roi_<your_initials>_OrderHub` and `roi_<your_initials>_OrderHubConsumer` r
 - **ProcessDirect** = in-memory, intra-tenant, not metered, not durable. Use for composition; use JMS for decoupling-with-durability.
 - **Header allow-list is mandatory** on both sides of the ProcessDirect link. Default empty = no headers. **Properties never propagate.**
 - **Versioned endpoints** — `/foo/v1/bar`. Discipline, not feature.
-- **Sync (Request-Reply)** when you need the callee's body back. **One-Way (Send)** for fire-and-forget.
+- **ProcessDirect is Request-Reply only** — no fire-and-forget MEP exists. Want fire-and-forget between iFlows? Use JMS instead.
 - **Subflow / Local Integration Process** = within one iFlow. **ProcessDirect** = across iFlows. Don't confuse.
 - **Script Collection naming**: `sc_<purpose>`. Scripts inside still `roiam_*`. Path: `script/v2/`.
 - **Reference, don't embed** — iFlow lists the Script Collection as a *Reference*; the script files live in the collection only.
