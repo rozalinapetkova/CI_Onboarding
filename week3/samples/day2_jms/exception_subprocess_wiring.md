@@ -1,6 +1,6 @@
 # Exception Subprocess — Retry / Bypass router wiring
 
-The consumer iFlow's Exception Subprocess is the single most important pattern of Day 3.2. JMS's own "Dead-Letter Queue" checkbox is a blunt safety net, not a real DLQ — it just marks an exhausted-retry message `Blocked` in the same queue, with no automatic reprocessing (`jms_sender_consumer_config.md`). Without this subprocess catching a failure first, that's where a permanently-failing message ends up. This subprocess is how you turn that into deliberate, observable error handling with a real, reprocessable DLQ.
+The consumer iFlow's Exception Subprocess is the single most important pattern of Day 3.2. Without it, a permanently-failing message just goes through retries and ends up `Failed` (or `Blocked`, if the adapter's Dead-Letter Queue checkbox is on) with no diagnostic context. This subprocess is how you turn that into deliberate, observable error handling with a real, reprocessable DLQ.
 
 ## Canvas layout
 
@@ -89,7 +89,7 @@ Add a header `X-DLQ-Reason` set to `${property.errorReason}` and prepend a small
 
 ### 4b. Retry branch — rethrow
 
-**Error End Event.** This is the canvas element that re-raises the exception out of the subprocess. JMS broker sees an unhandled error → message stays in the queue and keeps retrying **indefinitely**. That's intentional for this branch — you only route here when the categorization script has already decided the failure is transient. If it happens to never actually recover, it eventually goes `Blocked` in the source queue (the adapter's own Dead-Letter Queue checkbox) — an acceptable outcome, not something to prevent.
+**Error End Event.** This is the canvas element that re-raises the exception out of the subprocess. JMS broker sees an unhandled error → message stays in the queue and keeps retrying. That's intentional for this branch — you only route here when the categorization script has already decided the failure is transient. If it never actually recovers, it ends up `Failed` (or `Blocked`, if Dead-Letter Queue is enabled).
 
 Alternative: a Script step with `throw new RuntimeException(...)`. The Error End Event is cleaner — the intent is visible from the canvas.
 

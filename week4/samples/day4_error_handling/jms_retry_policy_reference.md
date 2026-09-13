@@ -2,7 +2,7 @@
 
 The JMS adapter's retry is simple: on an unhandled exception, the Exception Subprocess fires (**every** attempt, not once at the end). The subprocess decides — immediately, from the nature of the error, not from how many times it's already failed — whether this is worth retrying at all:
 
-- **Transient** (might succeed on a future attempt) → rethrow. The broker redelivers after a backoff delay, **indefinitely** by default. That's intentional: if it never actually recovers, the message eventually ends up `Blocked` in the source queue (Section "Dead-Letter Queue" below) — an acceptable outcome for a case that was worth trying.
+- **Transient** (might succeed on a future attempt) → rethrow. The broker redelivers after a backoff delay. If it never actually recovers, it ends up `Failed`, or `Blocked` if Dead-Letter Queue is enabled (Section "Dead-Letter Queue" below).
 - **Permanent** (no number of retries will ever fix it) → route straight to a real DLQ, on this first failure, no waiting.
 
 There's no adapter-level attempt limit and no "try N times then decide it's permanent" logic anywhere — that split is made once, by classification, same as Day 3.2 (`week3/samples/day2_jms/exception_subprocess_wiring.md`).
@@ -22,7 +22,7 @@ Sender (JMS) > Connection tab
 └─ Dead-Letter Queue:               checked (see caveat below)
 ```
 
-**No `Maximum Redelivery` or `Acknowledge Mode` fields exist on this adapter.** The `Dead-Letter Queue` field *does* exist, but it's a checkbox with no name, and it's a much blunter tool than it sounds: a message whose retries exhaust it is marked `Blocked` **in the same source queue** — not moved anywhere, no automatic reprocessing, and not limited to node crashes (any exhausted-retry message ends up there if nothing catches it first). Building a real, separate, reprocessable DLQ is logic you write yourself in the Exception Subprocess's categorization script — deciding Retry vs. Bypass immediately, not by counting attempts.
+**No `Maximum Redelivery` or `Acknowledge Mode` fields exist on this adapter.** The `Dead-Letter Queue` field is available on Non-Exclusive queues: off, a message whose retries exhaust ends up `Failed` in the source queue; on, it's marked `Blocked` instead and released manually from the cockpit. Building a real, separate, reprocessable DLQ is logic you write yourself in the Exception Subprocess's categorization script — deciding Retry vs. Bypass immediately, not by counting attempts.
 
 These fields don't map 1:1 onto the AMQP Sender for Event Mesh either. AMQP has real `Max. Number of Retries` and `Dead Message Queue` fields directly on the queue — a genuinely different (adapter/broker-managed, separate-queue) model from JMS's blunt-checkbox-plus-build-it-yourself one. There's no `Acknowledge Mode` field on either adapter — acknowledgement on both is automatic, tied to whether the iFlow run completed successfully, not a setting you pick. See `amqp_vs_jms_reference.md` (Day 4.3) for the detail.
 
@@ -42,15 +42,15 @@ These fields don't map 1:1 onto the AMQP Sender for Event Mesh either. AMQP has 
 | 4 | 240s | 420s |
 | 5 | 480s | 900s (15 min) |
 | 6 | 960s | ~1860s (31 min) |
-| ... | keeps doubling, capped at 3600s | continues indefinitely |
+| ... | keeps doubling, capped at 3600s | until retries stop |
 
-There's no last row on purpose — a transient classification means "keep trying as long as it might work." If it never recovers, the message eventually goes `Blocked`, which is fine: it was correctly classified, it just happened not to succeed.
+Once retries stop, the message ends up `Failed` (or `Blocked`, if Dead-Letter Queue is enabled) — see below.
 
 ### Dead-Letter Queue — real one vs. adapter checkbox
 
 **The real one** is just a queue you create and name yourself (e.g. `roi.orderhub.dlq.<initials>`), populated only by your categorization script's Bypass branch routing to it via a JMS receiver adapter, then swallowing (Message End Event), **on the first attempt** — not after any number of retries. There's no name field on the adapter for it.
 
-**The adapter's own `Dead-Letter Queue` checkbox** (Connection tab) is a different, much blunter thing: it doesn't create a separate queue at all. A message whose retries exhaust it — for any reason, not just node crashes — just gets marked `Blocked` in the *same* source queue, with no automatic reprocessing. It's the fallback for transient-but-never-recovers messages, not a replacement for routing permanent failures to your real DLQ immediately.
+**The adapter's own `Dead-Letter Queue` checkbox** (Connection tab, Non-Exclusive queues only) marks a message `Blocked` in the *same* source queue once retries exhaust, instead of leaving it `Failed`. It's a status change for the transient-but-never-recovers case, not a replacement for routing permanent failures to your real DLQ immediately.
 
 DLQ naming convention:
 ```
@@ -85,7 +85,7 @@ The subprocess runs on **every** attempt, not once at the end — there's no sep
 | Subprocess responsibility | Adapter/broker responsibility |
 |---|---|
 | Classify the error (transient vs. permanent) immediately, on this attempt | Time the delay before the next redelivery |
-| Rethrow (Retry) or route to the real DLQ (Bypass) based on that classification | Increment `SAPJMSRetries` on each redelivery; mark `Blocked` if a transient message never recovers |
+| Rethrow (Retry) or route to the real DLQ (Bypass) based on that classification | Increment `SAPJMSRetries` on each redelivery; mark `Failed`/`Blocked` once retries stop |
 | Build the DLQ envelope for the Bypass path | Send the ACK when the subprocess ends via Message End Event |
 
 If you find yourself wanting the subprocess to count attempts before deciding, you're solving the wrong problem — the decision is about the error's *nature*, not its *age*. Tune Retry Interval / Exponential Backoff for how long a transient failure is allowed to keep trying; that's separate from whether it should be trying at all.
@@ -94,7 +94,7 @@ If you find yourself wanting the subprocess to count attempts before deciding, y
 
 | Mistake | Symptom | Fix |
 |---|---|---|
-| Categorization script mis-classifies a permanent error as transient | Retries indefinitely instead of reaching the real DLQ immediately; eventually goes `Blocked` in the source queue | Fix the classification — permanent failures skip straight to Bypass, not after any number of attempts |
+| Categorization script mis-classifies a permanent error as transient | Goes through retries and ends up `Failed`/`Blocked` instead of reaching the real DLQ immediately | Fix the classification — permanent failures skip straight to Bypass, not after any number of attempts |
 | Categorization script mis-classifies a transient error as permanent | Genuinely-recoverable failures get pulled out of retry and dumped in the DLQ prematurely | Fix the classification the other way |
 | `Maximum Retry Interval` < `Retry Interval` | Backoff has no effect | Maximum ≥ initial |
 | Different classification rules on JMS Sender + AMQP Sender for the same logical flow | Inconsistent behavior depending on entry path | Standardize the transient/permanent rule set across all entry adapters |

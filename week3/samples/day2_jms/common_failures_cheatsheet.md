@@ -28,7 +28,7 @@
 | DLQ has messages but Alert Notification didn't fire | Alert rule not configured on this queue, or threshold set to >current depth | Week 4: configure Alert Notification on DLQ depth > 0 |
 | DLQ messages don't show original error category | Categorization headers not preserved on enqueue, or DLQ envelope Content Modifier overwriting them | Set `X-Error-Category` and `X-DLQ-Reason` as outbound headers on the DLQ JMS receiver |
 | Replay loop — same message in DLQ five times | Bypass-class message replayed without fixing root cause | Stop. Read `replay_dlq_runbook.md`. Fix the cause, then replay |
-| Permanent-failure messages never reach the real DLQ, they pile up `Blocked` in the source queue instead | Categorization script mis-classifies a permanent error as transient — it retries indefinitely instead of routing to Bypass on attempt one | Fix the classification so permanent failures reach the real DLQ immediately, not after retries exhaust |
+| Permanent-failure messages never reach the real DLQ, they end up `Failed`/`Blocked` instead | Categorization script mis-classifies a permanent error as transient — it goes through retries instead of routing to Bypass on attempt one | Fix the classification so permanent failures reach the real DLQ immediately, not after retries exhaust |
 
 ## Queue / broker / plan-limit failures
 

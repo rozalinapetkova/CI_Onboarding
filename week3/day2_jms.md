@@ -82,9 +82,9 @@ On the **consumer** iFlow the **JMS sender adapter** polls the queue and starts 
 | Retry Interval | *60 s* / *300 s* | Backoff between redeliveries |
 | Exponential Backoff | *Yes* | Doubles each retry, up to Maximum Retry Interval |
 | Maximum Retry Interval | *3600 s* | Caps how long exponential backoff can grow to |
-| Dead-Letter Queue (Connection tab) | *checked* | See below — it's not what it sounds like |
+| Dead-Letter Queue (Connection tab) | *checked* | Non-Exclusive queues only — see Section 8 |
 
-**There is no "Number of Retries" field.** By default, redelivery is indefinite — and that's intentional, not a gap to close, for genuinely transient failures (Section 9). The **Dead-Letter Queue** field *does* exist, but it's a plain checkbox with no name to set — see Section 8 for what it actually does, which is much less than the name implies.
+Redelivery is governed by Retry Interval, Exponential Backoff, and Maximum Retry Interval — see Section 8 for what happens once it stops.
 
 **Vocabulary you need before Concurrent Processes makes sense:**
 
@@ -124,34 +124,31 @@ EOIO is a guarantee, not a knob. SAP CI offers EOIO via:
 
 For the Order Hub, you'd use a serialization key of `customerId` if "two orders for the same customer must process in arrival order" was a requirement. **For our lab, it isn't** — the canonical Order is independent per `orderId`. Skip EOIO. But know it exists.
 
-## 8. The DLQ — the real one is not what it sounds like
+## 8. Message status once retries run out
 
-The adapter's **Dead-Letter Queue** checkbox (Connection tab) is real, but it's a much blunter tool than the name suggests:
+The **Dead-Letter Queue** checkbox (Connection tab, ticked by default) is available only on **Non-Exclusive** queues.
 
-- It's a **checkbox, nothing to name.** There's no separate queue object involved.
-- A message that exhausts its redelivery attempts stays in the **same source queue** — it's just marked with processing status **`Blocked`**. Visible in *Monitor → Message Queues* (and the Lock Monitor while still in flight).
-- This isn't limited to node crashes — **any** message whose retries run out lands here, whatever the original cause.
-- **Nothing reprocesses a `Blocked` message automatically.** It just sits there until an operator manually retries or deletes it via the cockpit.
+| Dead-Letter Queue | Once retries stop | Where to see it |
+|---|---|---|
+| Off | Message stays in the queue with status **`Failed`** | *Monitor → Message Queues* |
+| On | Message is taken out of processing and marked **`Blocked`** | Dead-letter queue view; release manually from the cockpit |
 
-That last point is exactly why the hands-on lab builds a **real, separate DLQ queue yourself** instead of relying on the checkbox: `Blocked` gives you a dead end with no workflow around it, no distinct queue to alert on, and no way to `Move` it back to a different destination — just retry-in-place or delete. A queue you create yourself (e.g. `roi.orderhub.dlq.<your_initials>`) is:
+SAP's field help for the checkbox: *"Enables Cloud Integration to take a message out of processing and mark it as Blocked in the queue if the respective message caused two worker node crashes."*
 
-- **Genuinely separate** from the source queue — a real, distinct queue object.
-- **Populated only by your own Exception Subprocess logic** — explicitly, via a JMS receiver adapter pointing at it (Section 9's Bypass branch). SAP CI never routes a message there on its own.
-- **Actually reprocessable** — an operator (or a "retry iFlow") can inspect it, fix the root cause, and move messages back to the source queue on purpose, unlike a `Blocked` message sitting in limbo.
+**This isn't a second queue — it's a status on the same queue.** "Dead-letter queue view" just filters the source queue for `Blocked` messages; nothing is moved anywhere. Keep the checkbox on: a message that has crashed two worker nodes is pulled out and marked `Blocked` instead of being redelivered again. If it's off, that message keeps being redelivered and keeps crashing worker nodes, over and over, until its retries are exhausted and it settles as `Failed` — meanwhile it's caused a lot more damage on the way there than a `Blocked` message ever would.
 
-**The two destinations aren't a fallback chain — they're for two different kinds of failure, decided immediately, not after some number of attempts:**
+### Your own DLQ pattern
 
-- If there's a real chance a rerun succeeds — the failure is *transient* — let it retry. Native redelivery is indefinite (Section 5); if it never actually recovers, ending up `Blocked` eventually is a fine, acceptable outcome for that case. Nothing to build for this path.
-- If you already know the message is broken and no number of retries will ever fix it — the failure is *permanent* — send it straight to your own DLQ instead, on the very first attempt. From there it's visible, analyzable, and after a fix, replayable.
+`Failed` and `Blocked` both only happen after the platform has already spent time retrying. If you already know a message is broken — a malformed payload, a schema violation — retrying achieves nothing. Section 9's categorization sends that kind of failure straight to a real, separate queue you build yourself, on the very first attempt:
 
-Section 9 is how the categorization script tells these apart.
+- **Genuinely separate** from the source queue — a distinct queue object you create and name.
+- **Populated by your own Exception Subprocess** — routed there explicitly via a JMS receiver adapter (Section 9's Bypass branch), then a Message End Event.
+- **Reprocessable** — inspect it, fix the root cause, move messages back to the source queue on purpose.
 
-| Leave Dead-Letter Queue unticked, build nothing | Tick it, build your own DLQ too |
+| No DLQ built | Your own DLQ built |
 |---|---|
-| Genuinely-transient-but-never-recovers messages have nowhere to go but `Blocked` — no visibility, no alerting | Same acceptable outcome for those, but permanent failures skip `Blocked` entirely and land somewhere analyzable |
-| No alerting on permanent failure | Alert Notification can watch your DLQ's depth and page on-call |
-
-**Always build the real pattern on production consumers**, so permanent failures never have to rely on `Blocked` at all — that dead end is only ever an acceptable outcome for the transient case that happened not to recover.
+| A permanent failure still goes through retries before ending up `Failed`/`Blocked` | Routed straight there on the first attempt — no wasted retry cycles |
+| No alerting hook | Alert Notification can watch your DLQ's depth and page on-call |
 
 ## 9. Error categories — Retry vs. Bypass
 
@@ -159,7 +156,7 @@ This is the project's most opinionated JMS rule, and it's the bit that separates
 
 When a consumer iFlow fails, the failure is **either**:
 
-- **Retry** — *transient* failure, likely to succeed on a future attempt. Examples: HTTP 502/503/504, connection timeout, downstream maintenance window, OAuth token endpoint briefly unreachable. **Action:** let the JMS retry mechanism do its thing — backoff, retry, indefinitely. If it never actually recovers, ending up `Blocked` (Section 8) is an acceptable outcome — you were right to let it try.
+- **Retry** — *transient* failure, likely to succeed on a future attempt. Examples: HTTP 502/503/504, connection timeout, downstream maintenance window, OAuth token endpoint briefly unreachable. **Action:** let the JMS retry mechanism do its thing — backoff, retry.
 - **Bypass** — *permanent* failure, will **never succeed** no matter how many times you retry. Examples: HTTP 400 (malformed payload), HTTP 401/403 (auth wrong), HTTP 422 (validation rejection), schema-validation failure on the canonical XML. **Action:** route **directly to your own DLQ**, on this first failure — don't wait for any number of retries. Retrying a 400 is a waste of broker cycles and pollutes monitoring.
 
 The decision is made **once, immediately, from the nature of the error** — not from how many times it's already failed. There's no "give it a few tries, then decide it's permanent" step; if you already know it's unfixable, say so on attempt one.
@@ -167,7 +164,7 @@ The decision is made **once, immediately, from the nature of the error** — not
 Implementation pattern:
 
 1. The exception subprocess on the consumer iFlow inspects the exception and the response code.
-2. If transient → it **rethrows** the exception. JMS sees an unhandled error, the broker redelivers with backoff. This can continue indefinitely, and that's fine — it's supposed to keep trying as long as success is plausible.
+2. If transient → it **rethrows** the exception. JMS sees an unhandled error, the broker redelivers with backoff (Section 5).
 3. If permanent → it **routes the message to the DLQ explicitly** (e.g. via a JMS receiver adapter inside the exception subprocess pointing at `roi.orderhub.dlq.<your_initials>`), then **swallows** the exception so JMS sees a "successful processing" and removes the message from the source queue.
 
 The categorization logic itself is usually a Groovy script:
@@ -313,7 +310,7 @@ Each lab uses 2 queues per trainee × 8 trainees = 16 queues. Plus existing tena
 ### Failure cases to provoke
 
 - **Set Concurrent Processes to 4** then set Access Type to Exclusive → only one consumer actually drains the queue; you've capped throughput at one worker regardless of Concurrent Processes. Watch the queue depth grow.
-- **Mis-categorize a 422 as Retry** → retries indefinitely instead of going straight to your DLQ on the first failure. Wasted retry cycles on a permanent error, and it eventually ends up `Blocked` in the source queue instead of somewhere analyzable. Show the consumer's MPL — repeated Failed runs for one message. Operations team's nightmare.
+- **Mis-categorize a 422 as Retry** → wastes retry cycles on a permanent error instead of routing straight to your DLQ. Ends up `Failed`/`Blocked` instead of somewhere analyzable. Show the consumer's MPL — repeated Failed runs for one message. Operations team's nightmare.
 - **No exception subprocess at all** → consumer fails opaquely; JMS retries blindly; DLQ messages have no useful diagnostic info.
 - **Set Retry Interval to 1 second** → tight retry storm overwhelms the downstream. Always use sane backoff (60s minimum for HTTP downstreams).
 
@@ -325,8 +322,8 @@ Each lab uses 2 queues per trainee × 8 trainees = 16 queues. Plus existing tena
 - **JMS receiver** = producer side (iFlow → queue). **JMS sender** = consumer side (queue → iFlow).
 - **Naming**: `roi.<flow>.<purpose>` lower-case dot-separated. For lab, suffix `<your_initials>`.
 - **Standard plan limits**: 30 queues, 9.3 GB, 150 transactions. Check before adding.
-- **The adapter's Dead-Letter Queue checkbox isn't a real DLQ.** It's a same-queue `Blocked` status with no name, no reprocessing, triggered whenever retries run out — not just node crashes. Retries themselves are indefinite by default. The *real* DLQ is a plain queue you create yourself and route to explicitly from the Exception Subprocess.
-- **Retry vs. Bypass** error categorization is mandatory on production consumers, decided immediately from the error's nature, not after some number of attempts. Retry = transient, rethrow (Error End Event), retry indefinitely — ending up `Blocked` eventually is fine if it never actually recovers. Bypass = permanent, route straight to your DLQ + swallow (Message End Event), on the first failure.
+- **Once retries stop**: `Failed` (Dead-Letter Queue off) or `Blocked` (Dead-Letter Queue on, Non-Exclusive queues only). Your own DLQ is a separate queue you create and route to explicitly from the Exception Subprocess.
+- **Retry vs. Bypass** error categorization is mandatory on production consumers, decided immediately from the error's nature, not after some number of attempts. Retry = transient, rethrow (Error End Event). Bypass = permanent, route straight to your DLQ + swallow (Message End Event), on the first failure.
 - **EOIO** via JMS serialization key when arrival order matters per partition. Skip otherwise.
 - **Access Type = Exclusive** caps throughput at one worker, ignoring Concurrent Processes entirely. Use deliberately, not by default.
 - **JMS hops are not metered.** Free in the message count.
