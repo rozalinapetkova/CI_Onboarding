@@ -1,12 +1,14 @@
 # HTTP receiver — calling restcountries.com
 
-This receiver hop calls `https://restcountries.com/v3.1/alpha/${header.customerCountry}`. It is the simplest possible *external* HTTPS call: no auth, no CSRF, no proxy.
+This receiver hop calls `https://restcountries.com/v3.1/alpha/${property.customerCountry}`. It is the simplest possible *external* HTTPS call: no auth, no CSRF, no proxy.
+
+**Before any of this works, `customerCountry` has to be allow-listed on the sender side** — canvas empty space → Integration Flow menu → Runtime Configuration → Allowed Header(s). Without that, the header is dropped before the Content Modifier ever sees it, the property this address reads is empty, and this call ends up malformed regardless of what the caller sent. See `day3_adapters_sync.md` Step 0.
 
 ## Adapter settings
 
 | Setting | Value | Notes |
 |---|---|---|
-| Address | `https://restcountries.com/v3.1/alpha/${header.customerCountry}` | Dynamic URL using a header. Camel evaluates `${header.X}` at runtime. |
+| Address | `https://restcountries.com/v3.1/alpha/${property.customerCountry}` | Dynamic URL using the property the Content Modifier stashed — not the raw header. Camel evaluates `${property.X}` at runtime. |
 | HTTP Method | `GET` | restcountries only exposes GET. |
 | Authentication | `None` | Public API. |
 | Proxy Type | `Internet` | Out-of-the-box egress, no Cloud Connector. |

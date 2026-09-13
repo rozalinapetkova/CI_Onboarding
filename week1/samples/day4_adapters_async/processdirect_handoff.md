@@ -17,9 +17,11 @@ ProcessDirect receiver step at the end of the happy path, after the country look
 | Setting | Value | Notes |
 |---|---|---|
 | Address | `/ProcessDirect/<initials>_customerLog` | Must match the consumer's listener exactly. |
-| Allowed Headers | `correlationId\|customerId` | **Critical** — only headers on this pipe-separated list cross the boundary. Everything else is dropped. |
+| Allowed Headers | `correlationId\|customerId\|X-Logged` | **Critical** — only headers on this pipe-separated list cross the boundary. Everything else is dropped. |
 
 > The headers field is an **allow-list**, not a filter. If you forget `customerId` here, the consumer's Data Store key will be null.
+
+**`X-Logged` matters here specifically because this is the *return* trip.** The consumer sets `X-Logged: true` on its own response — but a header the callee sets only makes it back to the caller if it's on *this* list (the caller's own receiver-side Allowed Headers), not the callee's. Forget it here and `X-Logged` silently never comes back, even though the callee sent it.
 
 ## Adapter — consumer side (`roi_<initials>_CustomerLogger`)
 
@@ -28,6 +30,7 @@ ProcessDirect sender step as the start of the consumer iFlow.
 | Setting | Value | Notes |
 |---|---|---|
 | Address | `/ProcessDirect/<initials>_customerLog` | Same string. |
+| Allowed Headers | `X-Logged` | Doesn't govern the return trip (see above) — this list only filters what comes *in* from the caller. Set it anyway; keeping both sides' lists in sync is the project convention. |
 
 That's it — no auth. MEP is Request-Reply (ProcessDirect's only option, set here too). The receiving iFlow just listens.
 

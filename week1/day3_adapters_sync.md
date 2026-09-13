@@ -97,6 +97,12 @@ We'll use the trial endpoint `https://restcountries.com/v3.1/alpha/{code}` (retu
 
 ### Steps
 
+0. **Allow-list `customerCountry` before anything else.** An inbound custom header isn't visible inside the iFlow just because the caller sent it — it has to be explicitly whitelisted first, or it's silently dropped at the sender boundary with no error.
+   - Click the empty canvas behind the flow (not on any shape) — an **Integration Flow** menu appears.
+   - Go to **Runtime Configuration** → **Allowed Header(s)**.
+   - Add `customerCountry`. Multiple names are pipe-separated (`headerOne|headerTwo`) — same convention as ProcessDirect's allow-list, Day 1.4. `*` accepts everything, but don't use it: explicit names only, same rule as everywhere else in this project.
+   - Save the iFlow.
+
 1. **Open `roi_<your_initials>_CustomerEchoService`.** Confirm it has the HTTPS sender at `/customer/<your_initials>/echo` and a Content Modifier.
 
 2. **Replace the placeholder with a real flow:**
@@ -114,12 +120,13 @@ We'll use the trial endpoint `https://restcountries.com/v3.1/alpha/{code}` (retu
      - `correlationId` — Type: *Expression* → `${date:now:yyyyMMddHHmmssSSS}-${exchangeId}` (we'll switch to a UUID via Groovy in Week 2).
      - `Content-Type` — Constant → `application/json`.
    - *Exchange Property*:
-     - `customerCountry` — Type: *XPath* won't work on JSON. Use **Type: Header** with name `customerCountry` and have the caller provide it as a header (cleaner for today). Document this in your iFlow comments.
+     - `customerCountry` — Type: *XPath* won't work on JSON. Use **Type: Header** with name `customerCountry` and have the caller provide it as a header (cleaner for today). Document this in your iFlow comments. **This property is what Step 4's receiver address actually reads — not the raw header** (see Step 4).
+     - **Before this header is readable at all, it has to be allow-listed — see the Step 0 below.** Without that, `customerCountry` never reaches this Content Modifier no matter what the caller sends.
 
    *(Tomorrow we'll learn the JSON-to-XML converter trick to extract `country` from the body without a header.)*
 
 4. **Add a Request-Reply step**, then drop an **HTTP receiver adapter** on its outbound line.
-   - **Address**: `https://restcountries.com/v3.1/alpha/${header.customerCountry}`
+   - **Address**: `https://restcountries.com/v3.1/alpha/${property.customerCountry}` — the property Step 3 stashed, not the raw header. This is the point of extracting it into a property: the value is available for the rest of *this* iFlow run without depending on the header still being around unchanged.
    - **Method**: GET
    - **Authentication**: None
    - **Throw Exception on Failure**: leave checked for now.
@@ -160,6 +167,7 @@ After the happy path works, try:
 ## Reference card excerpt — Day 1.3
 
 - HTTPS sender = inbound; HTTP receiver = outbound.
+- **Inbound custom headers must be allow-listed** — canvas empty space → Integration Flow menu → Runtime Configuration → Allowed Header(s), pipe-separated. Not on the list = silently dropped, even though the caller sent it.
 - HTTP receiver default timeout 60 s, retry up to 3x.
 - **Uncheck "Throw Exception on Failure"** to route on `CamelHttpResponseCode` instead of failing.
 - SOAP SAP RM provides **EO / EOIO** with 90-day message-ID dedup.

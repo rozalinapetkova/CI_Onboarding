@@ -34,7 +34,7 @@ When you wire a sender to an Integration Process you choose:
 
 | Pattern | Meaning | Common adapters |
 |---|---|---|
-| **Request-Reply** | Synchronous; the sender waits for a response. | HTTP (sync), SOAP (sync), OData |
+| **Request-Reply** | Synchronous; the sender waits for a response. | HTTP (sync), SOAP (sync), OData, Process direct |
 | **One-Way** | Fire-and-forget; sender doesn't wait. | SFTP, JMS, AMQP |
 
 Sounds obvious, but get it wrong and you get cryptic errors at deploy time. The MEP must match what the protocol semantically supports.
@@ -79,7 +79,8 @@ You won't use every step in Week 1, but the icons should be familiar.
 | **Data Store Operations** | Write/Select/Get/Delete/Update. | 3.4 |
 | **Write Variables** | Persist tenant-wide globals. | 3.4 |
 | **Number Range** | Allocate a sequential counter. | 3.4 |
-| **JMS / AMQP / ProcessDirect adapters** | Async hops. | 1.4 / 3.2 / 4.3 |
+| **JMS / AMQP adapters** | Async, durable hops. | 3.2 / 4.3 |
+| **ProcessDirect adapter** | Sync (Request-Reply) only, in-memory, intra-tenant. | 1.4 / 3.3 |
 | **Exception Subprocess** | Error handling pool. | 4.4 |
 
 ## 6. Deploying and calling an iFlow
@@ -140,6 +141,7 @@ You won't write any of these today.
      curl -u <user>:<password> -X POST "<runtime-url>" -d '{}'
      ```
    - You should get back the JSON body. If you get 401, your role assignment is missing — flag the trainer.
+   - **Postman works too, for this and every call from here on.** Basic Auth tab (same user/password), URL, body — whatever the `curl` example shows, set the equivalent fields in Postman. This course shows `curl` throughout because it's copy-pasteable in one line, not because Postman doesn't work; use whichever you're more comfortable with for the rest of the bootcamp.
 
 6. **Find it in the monitor.**
    - Monitor → Message Processing → set time filter to "Last 30 minutes" → click your message.

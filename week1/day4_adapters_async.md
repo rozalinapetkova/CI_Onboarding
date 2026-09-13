@@ -132,16 +132,18 @@ HTTPS POST ─▶ roi_CustomerEchoService (main)
 ### Steps
 
 1. **Create the consumer iFlow `roi_<your_initials>_CustomerLogger`.**
-   - Sender: **ProcessDirect** at address `/ProcessDirect/<your_initials>_customerLog`. MEP: Request-Reply — it's the only option ProcessDirect has, even for a call like this one that's logically just a side effect.
-   - Inside the IP: a **Script step** is *not* required for today; instead use a Content Modifier that sets a header `X-Logged: true`.
+   - Sender: **ProcessDirect** at address `/ProcessDirect/<your_initials>_customerLog`. MEP: Request-Reply — it's the only option ProcessDirect has.
+   - Add a Content Modifier step that sets a header `X-Logged: true`.
+   - Add `X-Logged` to the Allowed Headers list on both iFlows' ProcessDirect adapters.
    - End event.
    - Save → version → deploy. Wait for "Started".
 
 2. **Open the main iFlow `roi_<your_initials>_CustomerEchoService`.**
    - Add a **ProcessDirect receiver** call:
-     - Drop a *Request-Reply* step — ProcessDirect only supports Request-Reply, there's no fire-and-forget variant, even though we don't actually need the response body here (we just ignore it).
+     - Drop a *Request-Reply* step — ProcessDirect only supports Request-Reply, there's no fire-and-forget variant.
      - Wire to a new receiver pool, adapter type **ProcessDirect**, address `/ProcessDirect/<your_initials>_customerLog`.
-     - Click the adapter's *Allowed Headers* — add `correlationId|customerId` so the consumer can see them.
+     - Click the adapter's *Allowed Headers* — add `correlationId|customerId|X-Logged`.
+   - Add a Content Modifier after the ProcessDirect call: add a field to the response body using `${header.X-Logged}`, e.g. `"loggerConfirmed": "${header.X-Logged}"`. This proves in the response itself that `CustomerLogger` actually ran.
    - Add a **Data Store Write** step:
      - Operation: *Write*.
      - Data Store Name: `CustomerEcho`.
@@ -159,6 +161,7 @@ HTTPS POST ─▶ roi_CustomerEchoService (main)
         -d '{ "customerId": "C-1001", "name": "Acme GmbH", "country": "DE" }'
    ```
    - Hit it 3–5 times with different `customerId` values.
+   - Confirm the response body includes `"loggerConfirmed": "true"`.
 
 5. **Verify.**
    - Monitor → Message Processing → confirm both iFlow runs (the main one and the logger consumer) appear and both are *Completed*. They should share a correlation ID.
